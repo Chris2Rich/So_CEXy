@@ -80,8 +80,10 @@ const server = https.createServer(sslOptions, (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" })
     if(req.url.startsWith("/api/")){
         res.end(JSON.stringify(handleapi(req)))
+        return
     }
     res.end(JSON.stringify({ status: "OK", time: new Date().toISOString(), url: req.url }))
+    return
 })
 
 server.on("error", (error) => {
