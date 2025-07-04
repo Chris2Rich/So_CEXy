@@ -1,21 +1,123 @@
 import https from "https"
 import fs from "fs"
-import path from "path"
-import os from "os"
 import constants from "constants"
+import crypto from "crypto"
+import { Client } from "pg"
 
-function handleapi(req){
-    // Adds orders if the purchasing power is high enough
-    if(req.url.startsWith("/api/add_orders")){}
+const PORT = process.env.PORT || 3000
+const HOST = process.env.HOST || "0.0.0.0"
 
-    // Cancels orders if they have not been executed
-    if(req.url.startsWith("/api/cancel_orders")){}
+const client = new Client({
+    user: "postgres",
+    password: "",
+    host: HOST,
+    port: 5334,
+    database: "socexy",
+})
 
-    // Gets the current orders within the current delta - needs to be fast
-    if(req.url.startsWith("/api/get_current_orders")){}
+await client.connect()
+
+let delta = {}
+const tickers = JSON.parse(fs.readFileSync("/src/tickers.json"))
+
+function read_stream(req) {
+    let body = ""
+
+    req.on("data", chunk => {
+        body += chunk.toString()
+    })
+
+    req.on("end", () => {
+        return JSON.parse(body)
+    })
+
+    return {}
+}
+
+function return_error(e) {
+    return { "status": "OK", "time": new Date().toISOString(), "error": e }
+}
+
+async function handleapi(req) {
+    // Adds orders to the delta
+    if (req.url.startsWith("/api/add_orders")) {
+        data = read_stream(req)
+
+        userid = null
+        amount = null
+        ticker = null
+        ordertype = null
+
+        if (data.userid) {
+            userid = data.userid
+            const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+            if (!uuidRegex.test(userid)) {
+                return return_error("User ID format is invalid")
+            }
+
+            try {
+                const userCheck = await client.query("SELECT 1 FROM users WHERE id = $1", [userid]);
+                if (userCheck.rowCount == 0) {
+                    return return_error("User ID not found");
+                }
+            } catch (dbError) {
+                console.error("Database error checking user:", dbError);
+                return return_error("Internal server error");
+            }
+        } else { return return_error("User ID field malformed") }
+        if (data.amount) {
+            amount = data.amount
+            if (amount <= 0) {
+                return return_error("Amount negative")
+            }
+
+        } else { return return_error("Amount field malformed") }
+        if (data.ticker) {
+            ticker = data.ticker
+            if (!(tickers.includes(ticker.toUpperCase()))) {
+                return return_error("Ticker not recognized")
+            }
+        } else { return return_error("Ticker field malformed") }
+        if (data.ordertype) {
+            ordertype = data.ordertype
+            if (!([-1, 0, 1].includes(ordertype))) {
+                return return_error("OrderType not valid")
+            }
+        } else { return return_error("OrderType field malformed") }
+
+        orderdata = {
+            "userid": userid,
+            "amount": amount,
+            "ticker": ticker,
+            "ordertype": ordertype
+        }
+
+        // use double hash of the data to make it infeasible to calculate the deltaorderid and cancel orders
+        deltaorderid = crypto.createHash("sha256").update(crypto.createHash("sha256").update(JSON.stringify(orderdata)).digest("hex")).digest("hex")
+        Object.assign(delta, {
+            deltaorderid: orderdata
+        })
+
+        return { "status": "OK", "time": new Date().toISOString(), "deltaorderid": deltaorderid, "orderdata": orderdata }
+    }
+
+    // Removes orders from the delta
+    if (req.url.startsWith("/api/cancel_orders")) {
+        data = read_stream(req)
+
+        deltaorderid = null
+        userid = null
+
+        if (data.deltaorderid) {
+            deltaorderid = data.deltaorderid
+        } else { return return_error("Delta OrderID field is malformed") }
+    }
+
+    // Gets the current delta - should not expose deltaorderid or userid
+    if (req.url.startsWith("/api/get_current_orders")) { }
 
     // Gets historical orders and executions excluding the current delta
-    if(req.url.startsWith("/api/get_orders")){}
+    if (req.url.startsWith("/api/get_orders")) { }
 }
 
 const sslOptions = {
@@ -61,7 +163,7 @@ const sslOptions = {
         constants.SSL_OP_CIPHER_SERVER_PREFERENCE
 };
 
-const server = https.createServer(sslOptions, (req, res) => {
+const server = https.createServer(sslOptions, async (req, res) => {
 
     const securityHeaders = {
         "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
@@ -78,20 +180,18 @@ const server = https.createServer(sslOptions, (req, res) => {
     })
 
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" })
-    if(req.url.startsWith("/api/")){
-        res.end(JSON.stringify(handleapi(req)))
+    if (req.url.startsWith("/api/")) {
+        const api_result = await handleapi(req)
+        res.end(JSON.stringify(api_result))
         return
     }
-    res.end(JSON.stringify({ status: "OK", time: new Date().toISOString(), url: req.url }))
+    res.end(JSON.stringify({ "status": "OK", "time": new Date().toISOString(), "url": req.url }))
     return
 })
 
 server.on("error", (error) => {
     console.error("Server error:", error);
 })
-
-const PORT = process.env.PORT || 3000
-const HOST = process.env.HOST || "0.0.0.0"
 
 server.listen(PORT, HOST, () => {
     console.log(`Server running at https://${HOST}:${PORT}`);
