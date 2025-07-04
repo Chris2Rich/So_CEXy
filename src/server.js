@@ -9,140 +9,146 @@ const HOST = process.env.HOST || "0.0.0.0"
 
 const client = new Client({
     user: "postgres",
-    password: "",
-    host: HOST,
-    port: 5334,
+    password: "Password123",
+    host: "localhost",
+    port: 5432,
     database: "socexy",
 })
 
 await client.connect()
 
 let delta = {}
-const tickers = JSON.parse(fs.readFileSync("/src/tickers.json"))
+const tickers = JSON.parse(fs.readFileSync("src/tickers.json"))
 
 function read_stream(req) {
-    let body = ""
-
-    req.on("data", chunk => {
-        body += chunk.toString()
+    return new Promise((resolve, reject) => {
+        let body = ""
+        req.on("data", chunk => {
+            body += chunk.toString()
+        })
+        req.on("end", () => {
+            try {
+                if (body) {
+                    resolve(JSON.parse(body))
+                } else {
+                    resolve({}) // Resolve with an empty object if no body
+                }
+            } catch (e) {
+                reject(new Error("Invalid JSON in request body"))
+            }
+        })
+        req.on("error", (err) => {
+            reject(err)
+        })
     })
-
-    req.on("end", () => {
-        return JSON.parse(body)
-    })
-
-    return {}
 }
 
 function return_error(e) {
-    return { "status": "OK", "time": new Date().toISOString(), "error": e }
+    return { "status": "Error", "time": new Date().toISOString(), "error": e }
 }
 
 async function handleapi(req) {
-    // Adds orders to the delta
-    if (req.url.startsWith("/api/add_orders")) {
-        let data = read_stream(req)
+    try {
 
-        let userid = null
-        let amount = null
-        let ticker = null
-        let ordertype = null
+        // Adds orders to the delta
+        if (req.url.startsWith("/api/add_order")) {
+            let data = await read_stream(req)
 
-        if (data.userid) {
-            userid = data.userid
-            const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
-            if (!uuidRegex.test(userid)) {
-                return return_error("User ID format is invalid")
-            }
+            let userid = null
+            let amount = null
+            let ticker = null
+            let ordertype = null
 
-            try {
-                const userCheck = await client.query("SELECT 1 FROM users WHERE id = $1", [userid]);
-                if (userCheck.rowCount == 0) {
-                    return return_error("User ID not found");
+            if (data.userid) {
+                userid = data.userid
+                const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+                if (!uuidRegex.test(userid)) {
+                    return return_error("User ID format is invalid")
                 }
-            } catch (dbError) {
-                console.error("Database error checking user:", dbError);
-                return return_error("Internal server error");
-            }
-        } else { return return_error("User ID field malformed") }
-        if (data.amount) {
-            amount = data.amount
-            if (amount <= 0) {
-                return return_error("Amount negative")
-            }
 
-        } else { return return_error("Amount field malformed") }
-        if (data.ticker) {
-            ticker = data.ticker
-            if (!(tickers.includes(ticker.toUpperCase()))) {
-                return return_error("Ticker not recognized")
-            }
-        } else { return return_error("Ticker field malformed") }
-        if (data.ordertype) {
-            ordertype = data.ordertype
-            if (!([-1, 1].includes(ordertype))) {
-                return return_error("OrderType not valid")
-            }
-        } else { return return_error("OrderType field malformed") }
-
-        let orderdata = {
-            "userid": userid,
-            "amount": amount,
-            "ticker": ticker,
-            "ordertype": ordertype
-        }
-
-        // use double hash of the data to make it infeasible to calculate the deltaorderid and cancel orders
-        let deltaorderid = crypto.createHash("sha256").update(crypto.createHash("sha256").update(JSON.stringify(orderdata)).digest("hex")).digest("hex")
-        Object.assign(delta, {
-            deltaorderid: orderdata
-        })
-
-        return { "status": "OK - created order", "time": new Date().toISOString(), "deltaorderid": deltaorderid, "orderdata": orderdata }
-    }
-
-    // Removes orders from the delta
-    if (req.url.startsWith("/api/cancel_orders")) {
-        let data = read_stream(req)
-
-        let deltaorderid = null
-        let userid = null
-
-        if (data.deltaorderid) {
-            deltaorderid = data.deltaorderid
-        } else { return return_error("Delta OrderID field is malformed") }
-        if (data.userid) {
-            userid = data.userid
-        } else { return return_error("Delta OrderID field is malformed") }
-
-        if (delta[deltaorderid]) {
-            if (delta[deltaorderid].userid == userid) {
-                delete delta[deltaorderid]
-                return { "status": "OK - deleted order", "time": new Date().toISOString() }
-            }
-            return return_error("UserID is not valid for this ")
-        }
-        return return_error("Delta OrderID does not exist")
-    }
-
-    // Gets the current delta - should not expose deltaorderid or userid
-    if (req.url.startsWith("/api/get_current_orders")) {
-        let current_delta = {}
-        let deltakeys = Object.keys(delta);
-        for (let i = 0; i < deltakeys.length(); i++) {
-            Object.assign(current_delta, {
-                i: {
-                    "amount": delta[deltakeys[i]].amount,
-                    "ticker": delta[deltakeys[i]].ticker,
-                    "ordertype": delta[deltakeys[i]].ordertype,
+                try {
+                    const userCheck = await client.query("SELECT 1 FROM users WHERE id = $1", [userid]);
+                    if (userCheck.rowCount == 0) {
+                        return return_error("User ID not found");
+                    }
+                } catch (dbError) {
+                    console.error("Database error checking user:", dbError);
+                    return return_error("Internal server error");
                 }
-            })
-        }
-        return current_delta
-    }
+            } else { return return_error("User ID field malformed") }
+            if (data.amount) {
+                amount = data.amount
+                if (amount <= 0) {
+                    return return_error("Amount negative")
+                }
 
-    // Gets historical orders and executions excluding the current delta
-    if (req.url.startsWith("/api/get_orders")) { }
+            } else { return return_error("Amount field malformed") }
+            if (data.ticker) {
+                ticker = data.ticker.toUpperCase()
+                if (!(ticker in tickers)) {
+                    return return_error("Ticker not recognized")
+                }
+            } else { return return_error("Ticker field malformed") }
+            if (data.ordertype) {
+                ordertype = data.ordertype
+                if (!([-1, 1].includes(ordertype))) {
+                    return return_error("OrderType not valid")
+                }
+            } else { return return_error("OrderType field malformed") }
+
+            let orderdata = {
+                "userid": userid,
+                "amount": amount,
+                "ticker": ticker,
+                "ordertype": ordertype
+            }
+
+            // use double hash of the data to make it infeasible to calculate the deltaorderid and cancel orders
+            let deltaorderid = crypto.randomUUID().toString()
+            delta[deltaorderid] = orderdata
+
+            return { "status": "OK - created order", "time": new Date().toISOString(), "deltaorderid": deltaorderid, "orderdata": orderdata }
+        }
+
+        // Removes orders from the delta
+        if (req.url.startsWith("/api/cancel_order")) {
+            let data = await read_stream(req)
+
+            let deltaorderid = null
+            let userid = null
+
+            if (data.deltaorderid) {
+                deltaorderid = data.deltaorderid
+            } else { return return_error("Delta OrderID field is malformed") }
+            if (data.userid) {
+                userid = data.userid
+            } else { return return_error("UserID field is malformed") }
+
+            if (delta[deltaorderid]) {
+                if (delta[deltaorderid].userid == userid) {
+                    delete delta[deltaorderid]
+                    return { "status": "OK - deleted order", "time": new Date().toISOString() }
+                }
+                return return_error("UserID is not valid for this ")
+            }
+            return return_error("Delta OrderID does not exist")
+        }
+
+        // Gets the current delta - should not expose deltaorderid or userid
+        if (req.url.startsWith("/api/get_delta")) {
+            return Object.values(delta).map(order => ({
+                "amount": order.amount,
+                "ticker": order.ticker,
+                "ordertype": order.ordertype,
+            }))
+        }
+
+        // Gets historical orders and executions excluding the current delta
+        if (req.url.startsWith("/api/get_orders")) { }
+    }
+    catch (err) {
+        return_error(err)
+    }
 }
 
 const sslOptions = {
