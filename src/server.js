@@ -44,7 +44,7 @@ function read_stream(req) {
 }
 
 function return_error(e) {
-    return { "status": "Error", "time": new Date().toISOString(), "error": e }
+    return { "status": "Error", "time": new Date().toUTCString(), "error": e }
 }
 
 async function handleapi(req) {
@@ -107,7 +107,7 @@ async function handleapi(req) {
             let deltaorderid = crypto.randomUUID().toString()
             delta[deltaorderid] = orderdata
 
-            return { "status": "OK - created order", "time": new Date().toISOString(), "deltaorderid": deltaorderid, "orderdata": orderdata }
+            return { "status": "OK", "time": new Date().toUTCString(), "deltaorderid": deltaorderid, "orderdata": orderdata }
         }
 
         // Removes orders from the delta
@@ -127,7 +127,7 @@ async function handleapi(req) {
             if (delta[deltaorderid]) {
                 if (delta[deltaorderid].userid == userid) {
                     delete delta[deltaorderid]
-                    return { "status": "OK - deleted order", "time": new Date().toISOString() }
+                    return { "status": "OK", "time": new Date().toUTCString() }
                 }
                 return return_error("UserID is not valid for this ")
             }
@@ -141,6 +141,45 @@ async function handleapi(req) {
                 "ticker": order.ticker,
                 "ordertype": order.ordertype,
             }))
+        }
+
+        // Recieves a username and pubkey (derived from hash of username + hash of password), checks for username uniqueness
+        if (req.url.startsWith("/api/create_user")) {
+            let data = await read_stream(req)
+
+            let username = null
+            let pubkey = null
+            let sent_challenge = null
+            let challenge = new Date().getUTCDay()
+
+            if (data.username) {
+                username = data.username
+
+                const usernameRegex = /^\w*$/
+                if (!usernameRegex.test(username)) {
+                    return return_error("Username contains non word characters")
+                }
+
+                try {
+                    const usernameCheck = await client.query("SELECT 1 FROM users WHERE username = $1", [username]);
+                    if (usernameCheck.rowCount != 0) {
+                        return return_error("Username already taken");
+                    }
+                } catch (dbError) {
+                    console.error("Database error checking user:", dbError);
+                    return return_error("Internal server error");
+                }
+            } else { return return_error("Username field malformed") }
+            if (data.pubkey) {
+                pubkey = data.pubkey
+            } else { return return_error("Pubkey field malformed") }
+            if (data.sent_challenge) {
+                sent_challenge = data.sent_challenge
+            } else { return return_error("Challenge malformed") }
+
+            if (crypto.publicDecrypt(pubkey, sent_challenge) == challenge) {
+                return { "status": "OK", "time": new Date().toUTCString() }
+            } else { return return_error("Decrypted sent challenge does not match challenge") }
         }
 
         // Gets historical orders and executions excluding the current delta
@@ -216,7 +255,7 @@ const server = https.createServer(sslOptions, async (req, res) => {
         res.end(JSON.stringify(api_result))
         return
     }
-    res.end(JSON.stringify({ "status": "OK", "time": new Date().toISOString(), "url": req.url }))
+    res.end(JSON.stringify({ "status": "OK", "time": new Date().toUTCString(), "url": req.url }))
     return
 })
 
