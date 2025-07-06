@@ -706,13 +706,6 @@ const sslOptions = {
 const server = https.createServer(sslOptions, async (req, res) => {
 
     const securityHeaders = {
-        "Strict-Transport-Security": "max-age=63072000 includeSubDomains preload",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "SAMEORIGIN",
-        "X-XSS-Protection": "0",
-        "Content-Security-Policy": "default-src *; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline';",
-        "Referrer-Policy": "no-referrer-when-downgrade",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()"
     }
 
     Object.entries(securityHeaders).forEach(([key, value]) => {
