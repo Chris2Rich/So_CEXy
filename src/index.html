@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoCexy Trading Platform</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/2.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1421;
+            color: #d1d4dc;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 1px;
+            background: #1e222d;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: #1e222d;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid #2a2e39;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2962ff;
+            margin-right: 30px;
+        }
+
+        .ticker-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ticker-dropdown {
+            background: #2a2e39;
+            color: #d1d4dc;
+            border: 1px solid #434651;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .user-info {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .login-btn {
+            background: #2962ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .login-btn:hover {
+            background: #1e4fd1;
+        }
+
+        .sidebar {
+            background: #1e222d;
+            border-right: 1px solid #2a2e39;
+        }
+
+        .sidebar-right {
+            background: #1e222d;
+            border-left: 1px solid #2a2e39;
+        }
+
+        .chart-container {
+            background: #131722;
+            position: relative;
+            padding: 20px;
+        }
+
+        .chart-wrapper {
+            height: 100%;
+            position: relative;
+        }
+
+        .trading-panel {
+            padding: 20px;
+            border-bottom: 1px solid #2a2e39;
+        }
+
+        .trading-panel h3 {
+            color: #d1d4dc;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .order-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: #868993;
+            text-transform: uppercase;
+        }
+
+        .form-input {
+            background: #2a2e39;
+            border: 1px solid #434651;
+            color: #d1d4dc;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #2962ff;
+        }
+
+        .order-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .buy-btn, .sell-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .buy-btn {
+            background: #089981;
+            color: white;
+        }
+
+        .buy-btn:hover {
+            background: #0a7a68;
+        }
+
+        .sell-btn {
+            background: #f23645;
+            color: white;
+        }
+
+        .sell-btn:hover {
+            background: #d1293a;
+        }
+
+        .orderbook {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .orderbook h3 {
+            margin-bottom: 15px;
+            color: #d1d4dc;
+        }
+
+        .orderbook-table {
+            width: 100%;
+            font-size: 12px;
+            border-collapse: collapse;
+        }
+
+        .orderbook-table th,
+        .orderbook-table td {
+            padding: 4px 8px;
+            text-align: right;
+        }
+
+        .orderbook-table th {
+            color: #868993;
+            border-bottom: 1px solid #2a2e39;
+        }
+
+        .sell-order {
+            color: #f23645;
+        }
+
+        .buy-order {
+            color: #089981;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            background: #1e222d;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 400px;
+            border: 1px solid #2a2e39;
+        }
+
+        .modal h2 {
+            color: #d1d4dc;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .close {
+            color: #868993;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #d1d4dc;
+        }
+
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .success {
+            background: #089981;
+            color: white;
+        }
+
+        .error {
+            background: #f23645;
+            color: white;
+        }
+
+        .trades-panel {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .trades-table {
+            width: 100%;
+            font-size: 12px;
+            border-collapse: collapse;
+        }
+
+        .trades-table th,
+        .trades-table td {
+            padding: 4px 8px;
+            text-align: right;
+        }
+
+        .trades-table th {
+            color: #868993;
+            border-bottom: 1px solid #2a2e39;
+        }
+
+        .price-up {
+            color: #089981;
+        }
+
+        .price-down {
+            color: #f23645;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">SoCexy</div>
+            <div class="ticker-selector">
+                <select class="ticker-dropdown" id="tickerSelect">
+                    <option value="">Select Ticker</option>
+                </select>
+            </div>
+            <div class="user-info">
+                <span id="userDisplay">Not logged in</span>
+                <button class="login-btn" onclick="openLoginModal()">Login</button>
+            </div>
+        </header>
+
+        <div class="sidebar">
+            <div class="trading-panel">
+                <h3>Place Order</h3>
+                <div class="order-form">
+                    <div class="form-group">
+                        <label>Price</label>
+                        <input type="number" class="form-input" id="orderPrice" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" class="form-input" id="orderAmount" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="order-buttons">
+                        <button class="buy-btn" onclick="placeOrder(1)">BUY</button>
+                        <button class="sell-btn" onclick="placeOrder(-1)">SELL</button>
+                    </div>
+                </div>
+                <div id="orderStatus"></div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="tradingChart"></canvas>
+            </div>
+        </div>
+
+        <div class="sidebar-right">
+            <div class="orderbook">
+                <h3>Order Book</h3>
+                <table class="orderbook-table">
+                    <thead>
+                        <tr>
+                            <th>Price</th>
+                            <th>Amount</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderbookBody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="trades-panel">
+                <h3>Recent Trades</h3>
+                <table class="trades-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Price</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tradesBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2>Login</h2>
+            <div class="order-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" class="form-input" id="loginUsername" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" class="form-input" id="loginPassword" placeholder="Enter password">
+                </div>
+                <button class="login-btn" onclick="performLogin()" style="width: 100%; margin-top: 10px;">Login</button>
+            </div>
+            <div id="loginStatus"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let chart;
+        let currentTicker = '';
+        let currentUser = null;
+        let historicalData = [];
+        let refreshInterval;
+
+        // Initialize the application
+        async function init() {
+            await loadTickers();
+            initChart();
+            startDataRefresh();
+        }
+
+        // Load available tickers
+        async function loadTickers() {
+            try {
+                const response = await fetch('/api/get_tickers');
+                const data = await response.json();
+                const tickerSelect = document.getElementById('tickerSelect');
+                
+                if (data.status === 'OK' && data.tickers) {
+                    data.tickers.forEach(ticker => {
+                        const option = document.createElement('option');
+                        option.value = ticker;
+                        option.textContent = ticker;
+                        tickerSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading tickers:', error);
+            }
+        }
+
+        // Initialize chart
+        function initChart() {
+            const ctx = document.getElementById('tradingChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Price',
+                        data: [],
+                        borderColor: '#2962ff',
+                        backgroundColor: 'rgba(41, 98, 255, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute'
+                            },
+                            grid: {
+                                color: '#2a2e39'
+                            },
+                            ticks: {
+                                color: '#868993'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: '#2a2e39'
+                            },
+                            ticks: {
+                                color: '#868993'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // Handle ticker selection
+        document.getElementById('tickerSelect').addEventListener('change', function() {
+            currentTicker = this.value;
+            if (currentTicker) {
+                loadHistoricalData();
+                loadCurrentOrders();
+            }
+        });
+
+        // Load historical data for chart
+        async function loadHistoricalData() {
+            try {
+                const response = await fetch('/api/get_historical', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ticker: currentTicker,
+                        limit: 100
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'OK' && data.data) {
+                    historicalData = data.data;
+                    updateChart();
+                    updateRecentTrades();
+                }
+            } catch (error) {
+                console.error('Error loading historical data:', error);
+            }
+        }
+
+        // Update chart with historical data
+        function updateChart() {
+            const chartData = [];
+            
+            historicalData.forEach(delta => {
+                if (delta.trades && delta.trades.length > 0) {
+                    // Create candlestick data from trades
+                    const tickerTrades = delta.trades.filter(trade => trade.ticker === currentTicker);
+                    if (tickerTrades.length > 0) {
+                        const prices = tickerTrades.map(trade => trade.price);
+                        const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+                        
+                        chartData.push({
+                            x: new Date(delta.delta_time),
+                            y: avgPrice
+                        });
+                    }
+                }
+            });
+
+            chart.data.datasets[0].data = chartData;
+            chart.data.datasets[0].label = currentTicker;
+            chart.update();
+        }
+
+        // Load current orders (order book)
+        async function loadCurrentOrders() {
+            try {
+                const response = await fetch('/api/get_delta');
+                const data = await response.json();
+                
+                if (Array.isArray(data)) {
+                    const tickerOrders = data.filter(order => order.ticker === currentTicker);
+                    updateOrderBook(tickerOrders);
+                }
+            } catch (error) {
+                console.error('Error loading current orders:', error);
+            }
+        }
+
+        // Update order book display
+        function updateOrderBook(orders) {
+            const tbody = document.getElementById('orderbookBody');
+            tbody.innerHTML = '';
+
+            // Sort orders by price
+            const buyOrders = orders.filter(o => o.ordertype === 1).sort((a, b) => b.price - a.price);
+            const sellOrders = orders.filter(o => o.ordertype === -1).sort((a, b) => a.price - b.price);
+
+            // Add sell orders (top of book)
+            sellOrders.forEach(order => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="sell-order">${order.price.toFixed(2)}</td>
+                    <td>${order.amount.toFixed(2)}</td>
+                    <td class="sell-order">SELL</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Add buy orders (bottom of book)
+            buyOrders.forEach(order => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="buy-order">${order.price.toFixed(2)}</td>
+                    <td>${order.amount.toFixed(2)}</td>
+                    <td class="buy-order">BUY</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Update recent trades
+        function updateRecentTrades() {
+            const tbody = document.getElementById('tradesBody');
+            tbody.innerHTML = '';
+
+            const recentTrades = [];
+            historicalData.forEach(delta => {
+                if (delta.trades) {
+                    delta.trades.filter(trade => trade.ticker === currentTicker)
+                        .forEach(trade => recentTrades.push(trade));
+                }
+            });
+
+            recentTrades.sort((a, b) => new Date(b.trade_time) - new Date(a.trade_time))
+                .slice(0, 20)
+                .forEach(trade => {
+                    const row = document.createElement('tr');
+                    const time = new Date(trade.trade_time).toLocaleTimeString();
+                    row.innerHTML = `
+                        <td>${time}</td>
+                        <td class="price-up">${trade.price.toFixed(2)}</td>
+                        <td>${trade.amount.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+        }
+
+        // Place order
+        async function placeOrder(orderType) {
+            if (!currentUser) {
+                showStatus('orderStatus', 'Please login first', 'error');
+                return;
+            }
+
+            if (!currentTicker) {
+                showStatus('orderStatus', 'Please select a ticker', 'error');
+                return;
+            }
+
+            const price = parseFloat(document.getElementById('orderPrice').value);
+            const amount = parseFloat(document.getElementById('orderAmount').value);
+
+            if (!price || !amount || price <= 0 || amount <= 0) {
+                showStatus('orderStatus', 'Please enter valid price and amount', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/add_order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userid: currentUser,
+                        price: price,
+                        amount: amount,
+                        ticker: currentTicker,
+                        ordertype: orderType
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'OK') {
+                    showStatus('orderStatus', 'Order placed successfully', 'success');
+                    document.getElementById('orderPrice').value = '';
+                    document.getElementById('orderAmount').value = '';
+                    loadCurrentOrders();
+                } else {
+                    showStatus('orderStatus', data.error || 'Failed to place order', 'error');
+                }
+            } catch (error) {
+                showStatus('orderStatus', 'Error placing order', 'error');
+            }
+        }
+
+        // Login functions
+        function openLoginModal() {
+            document.getElementById('loginModal').style.display = 'block';
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').style.display = 'none';
+        }
+
+        async function performLogin() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                showStatus('loginStatus', 'Please enter username and password', 'error');
+                return;
+            }
+
+            try {
+                // In a real implementation, you would generate RSA keys and handle the challenge
+                // For now, we'll simulate the login process
+                showStatus('loginStatus', 'Login functionality requires RSA key implementation', 'error');
+                
+                // Simulate successful login for demo
+                // currentUser = 1; // This would be the actual user ID from the API
+                // document.getElementById('userDisplay').textContent = `Logged in as ${username}`;
+                // closeLoginModal();
+                
+            } catch (error) {
+                showStatus('loginStatus', 'Login failed', 'error');
+            }
+        }
+
+        // Utility functions
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status-message ${type}">${message}</div>`;
+            setTimeout(() => {
+                element.innerHTML = '';
+            }, 5000);
+        }
+
+        // Start data refresh
+        function startDataRefresh() {
+            refreshInterval = setInterval(() => {
+                if (currentTicker) {
+                    loadCurrentOrders();
+                }
+            }, 2000);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('loginModal');
+            if (event.target === modal) {
+                closeLoginModal();
+            }
+        }
+    </script>
+</body>
+</html>
