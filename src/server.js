@@ -36,6 +36,7 @@ const client = new Client({
 await client.connect()
 
 let delta = {}
+const nonceStore = new map()
 
 function read_stream(req) {
     return new Promise((resolve, reject) => {
@@ -433,7 +434,7 @@ async function handleapi(req) {
                 return return_error("Login verification failed.");
             }
         }
-        
+
         return { "status": "OK", "time": new Date().toUTCString(), "url": req.url }
     } catch (err) {
         return_error(err)
