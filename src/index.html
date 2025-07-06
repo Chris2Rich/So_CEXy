@@ -817,8 +817,9 @@
 
         // Update chart with new data
         function updateChart(data, ticker) {
+            if (!priceChart) return; // DEFENSIVE FIX: Prevents error if chart isn't ready.
+
             const chartData = [];
-            // The separate 'labels' array is no longer needed
             
             data.forEach(delta => {
                 if (delta.trades && delta.trades.length > 0) {
@@ -827,27 +828,19 @@
                         const prices = tickerTrades.map(trade => trade.price);
                         const close = prices[prices.length - 1];
                         
-                        // --- CORRECTED SECTION ---
-                        // Create objects with x and y properties for the time scale
                         chartData.push({
                             x: new Date(delta.delta_time),
                             y: close
                         });
-                        // --- END CORRECTION ---
                     }
                 }
             });
             
-            // Sort data chronologically
             chartData.sort((a, b) => a.x - b.x);
             
-            // --- CORRECTED SECTION ---
-            // Pass the array of {x, y} objects directly to the chart.
-            // Do not manually set the 'labels' array.
             priceChart.data.datasets[0].data = chartData; 
             priceChart.data.datasets[0].label = `${ticker} Price`;
             priceChart.update();
-            // --- END CORRECTION ---
         }
 
         // Load current delta orders
@@ -999,7 +992,7 @@
         selectOrderType(1);
 
         // Initialize the application when page loads
-        window.addEventListener('load', init);
+        window.addEventListener('DOMContentLoaded', init);
 
         // Close modal when clicking outside
         window.addEventListener('click', function(event) {
