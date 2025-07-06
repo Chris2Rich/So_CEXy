@@ -316,127 +316,124 @@ async function handleapi(req) {
             }
         }
 
-        // Recieves a username and pubkey (derived from hash of username + hash of password), checks for username uniqueness
         if (req.url.startsWith("/api/create_user")) {
-            let data = await read_stream(req)
+            const data = await read_stream(req);
+            const { username, pubkey, encrypted_private_key, salt, iv } = data;
 
-            let username = null
-            let pubkey = null
-            let sent_challenge = null
-            let challenge = crypto.createHash('sha256').update(new Date().toISOString().slice(0, 10)).digest("hex")
-
-            if (data.username) {
-                username = data.username
-
-                try {
-                    const usernameCheck = await client.query("SELECT 1 FROM users WHERE username = $1", [username])
-                    if (usernameCheck.rowCount != 0) {
-                        return return_error("Username already taken")
-                    }
-                } catch (dbError) {
-                    console.error("Database error checking user:", dbError)
-                    return return_error("Internal server error")
-                }
-            } else {
-                return return_error("Username field malformed")
-            }
-            if (data.pubkey) {
-                pubkey = data.pubkey
-            } else {
-                return return_error("Pubkey field malformed")
-            }
-            if (data.sent_challenge) {
-                sent_challenge = data.sent_challenge
-            } else {
-                return return_error("Challenge malformed")
+            // Basic validation
+            if (!username || !pubkey || !encrypted_private_key || !salt || !iv) {
+                return return_error("A required field is missing.");
             }
 
-            let decrypted = null
+            // Check if username is already taken
             try {
-                const challengeBuffer = Buffer.from(sent_challenge, "base64")
-                decrypted = crypto.publicDecrypt({
-                    key: pubkey,
-                    padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-                    oaepHash: "sha256"
-                }, challengeBuffer)
-            } catch (e) {
-                console.error("Decryption failed:", e)
-                return return_error("Failed to decrypt challenge")
+                const userCheck = await client.query("SELECT 1 FROM users WHERE username = $1", [username]);
+                if (userCheck.rowCount > 0) {
+                    return return_error("Username already taken");
+                }
+            } catch (dbError) {
+                console.error("Database error checking user:", dbError);
+                return return_error("Internal server error");
             }
 
-            if (decrypted.toString() == challenge.toString()) {
-                try {
-                    const insertUserResult = await client.query("INSERT INTO users (username, pubkey, amount) VALUES ($1, $2, $3) RETURNING id", [username, pubkey, sim_options.starting_balance])
+            // Insert new user with their cryptographic materials
+            try {
+                const insertUserResult = await client.query(
+                    `INSERT INTO users (username, pubkey, amount, encrypted_private_key, salt, iv) 
+                     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+                    [username, pubkey, sim_options.starting_balance, encrypted_private_key, salt, iv]
+                );
 
-                    const userid = insertUserResult.rows[0].id
-
-                    return { "status": "OK", "time": new Date().toUTCString(), "userid": userid }
-                } catch (insertError) {
-                    console.error("Database error inserting user:", insertError)
-                    return return_error("Internal server error")
-                }
-            } else {
-                return return_error("Decrypted sent challenge does not match challenge")
+                const userid = insertUserResult.rows[0].id;
+                return { "status": "OK", "time": new Date().toUTCString(), "userid": userid };
+            } catch (insertError) {
+                console.error("Database error inserting user:", insertError);
+                return return_error("Internal server error during user creation");
             }
         }
 
-        // Recieves a username and pubkey (derived from hash of username + hash of password), checks for username existence
-        if (req.url.startsWith("/api/login_user")) {
-            let data = await read_stream(req)
+        // --- NEW LOGIN FLOW (STEP 1): Get user data and a challenge ---
+        if (req.url.startsWith("/api/get_login_challenge")) {
+            const data = await read_stream(req);
+            const { username } = data;
 
-            let username = null
-            let sent_challenge = null
-            let challenge = crypto.createHash('sha256').update(new Date().toISOString().slice(0, 10)).digest("hex")
+            if (!username) return return_error("Username is required.");
 
-            if (data.username) {
-                username = data.username
-
-                try {
-                    const usernameCheck = await client.query("SELECT 1 FROM users WHERE username = $1", [username])
-                    if (usernameCheck.rowCount != 1) {
-                        return return_error("Username does not exist")
-                    }
-                } catch (dbError) {
-                    console.error("Database error checking user:", dbError)
-                    return return_error("Internal server error")
-                }
-            } else {
-                return return_error("Username field malformed")
-            }
-            if (data.sent_challenge) {
-                sent_challenge = data.sent_challenge
-            } else {
-                return return_error("Challenge malformed")
-            }
-
-            let pubkey = await client.query("SELECT pubkey FROM users WHERE username = $1", [username])
-
-            let decrypted = null
             try {
-                const challengeBuffer = Buffer.from(sent_challenge, "base64")
-                decrypted = crypto.publicDecrypt({
-                    key: pubkey,
-                    padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-                    oaepHash: "sha256"
-                }, challengeBuffer)
-            } catch (e) {
-                console.error("Decryption failed:", e)
-                return return_error("Failed to decrypt challenge")
-            }
+                const result = await client.query(
+                    "SELECT encrypted_private_key, salt, iv FROM users WHERE username = $1",
+                    [username]
+                );
 
-            if (decrypted.toString() == challenge.toString()) {
-                try {
-                    const userid = await client.query("SELECT id FROM users WHERE username = $1", [username])
-
-                    return { "status": "OK", "time": new Date().toUTCString(), "userid": userid.rows[0].id }
-                } catch (insertError) {
-                    console.error("Database error fetching user:", insertError)
-                    return return_error("Internal server error")
+                if (result.rowCount === 0) {
+                    return return_error("Invalid username or password."); // Generic error
                 }
-            } else {
-                return return_error("Decrypted sent challenge does not match challenge")
+
+                // Generate a cryptographically secure, single-use nonce (challenge)
+                const nonce = crypto.randomBytes(32).toString('hex');
+
+                // Store the nonce with a 2-minute expiry
+                nonceStore.set(username, { nonce, expiry: Date.now() + 2 * 60 * 1000 });
+
+                return {
+                    "status": "OK",
+                    ...result.rows[0],
+                    nonce: nonce // Send challenge to the client
+                };
+            } catch (dbError) {
+                console.error("Database error fetching login challenge data:", dbError);
+                return return_error("Internal server error");
             }
         }
+
+        // --- NEW LOGIN FLOW (STEP 2): Verify the signed challenge ---
+        if (req.url.startsWith("/api/verify_login_signature")) {
+            const data = await read_stream(req);
+            const { username, nonce, signature } = data;
+
+            if (!username || !nonce || !signature) {
+                return return_error("Malformed verification request.");
+            }
+
+            // 1. Verify the nonce is valid and expected
+            const storedNonce = nonceStore.get(username);
+            if (!storedNonce || storedNonce.nonce !== nonce || Date.now() > storedNonce.expiry) {
+                return return_error("Invalid or expired login challenge. Please try again.");
+            }
+            nonceStore.delete(username); // Invalidate nonce immediately
+
+            // 2. Get user's public key to verify the signature
+            try {
+                const userResult = await client.query("SELECT id, pubkey FROM users WHERE username = $1", [username]);
+                if (userResult.rowCount === 0) {
+                    return return_error("User not found.");
+                }
+                const { id, pubkey } = userResult.rows[0];
+
+                // 3. Perform the cryptographic verification
+                const isSignatureValid = crypto.verify(
+                    "sha256", // algorithm
+                    Buffer.from(nonce, 'utf-8'), // data that was signed
+                    {
+                        key: pubkey,
+                        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+                    },
+                    Buffer.from(signature, 'base64') // the signature
+                );
+
+                if (isSignatureValid) {
+                    return { "status": "OK", "time": new Date().toUTCString(), "userid": id };
+                } else {
+                    return return_error("Invalid signature.");
+                }
+
+            } catch (e) {
+                console.error("Verification error:", e);
+                return return_error("Login verification failed.");
+            }
+        }
+        
         return { "status": "OK", "time": new Date().toUTCString(), "url": req.url }
     } catch (err) {
         return_error(err)
