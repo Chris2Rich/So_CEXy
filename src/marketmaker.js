@@ -79,11 +79,11 @@ async function runMarketMakingCycle() {
         config.midPrice *= (1 + priceChange);
 
         // 2. Calculate the bid (buy) and ask (sell) prices
-        const bidPrice = config.midPrice - (config.spread / 2);
-        const askPrice = config.midPrice + (config.spread / 2);
+        const bidPrice = Number.parseFloat(config.midPrice - (config.spread / 2)).toFixed(5);
+        const askPrice = Number.parseFloat(config.midPrice + (config.spread / 2)).toFixed(5);
 
         // 3. Determine a random amount for this cycle's orders
-        const orderAmount = randomInRange(config.minAmount, config.maxAmount);
+        const orderAmount = Number.parseFloat(randomInRange(config.minAmount, config.maxAmount)).toFixed(2);
 
         console.log(`Updating market for ${ticker}. New Mid-Price: ${config.midPrice.toFixed(2)}`);
 

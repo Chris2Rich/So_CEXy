@@ -161,8 +161,8 @@ async function handleapi(req) {
 
             let orderdata = {
                 "userid": userid,
-                "price": price,
-                "amount": amount,
+                "price": Number.parseFloat(price).toFixed(5),
+                "amount": Number.parseFloat(amount).toFixed(2),
                 "ticker": ticker,
                 "ordertype": ordertype,
                 "time": new Date().toISOString()
@@ -539,7 +539,7 @@ function resolvedelta(delta) {
             const sell = sellOrders[j]
 
             if (buy.price >= sell.price) {
-                const quantity = Number.parseFloat(Math.min(buy.amount, sell.amount)).toFixed(2)
+                const quantity = Math.min(buy.amount, sell.amount)
                 trades.push({
                     "ticker": ticker,
                     "price": sell.price,
