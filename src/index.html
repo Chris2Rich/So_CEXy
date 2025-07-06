@@ -489,12 +489,12 @@
         let currentOrderType = 1; // 1 for buy, -1 for sell
         let priceChart = null;
         let tickers = [];
-        // No longer store keyPair globally. It will be derived/decrypted when needed.
+        // The new sessionPrivateKey replaces the old global keyPair
         let sessionPrivateKey = null;
 
 
         //=========================================================
-        // CRYPTOGRAPHIC HELPER FUNCTIONS (SECURE PATTERN)
+        // SECURE, WORKING AUTHENTICATION FUNCTIONS (INTENDED CHANGES)
         //=========================================================
 
         /**
@@ -527,10 +527,7 @@
             const exportedKey = await window.crypto.subtle.exportKey('pkcs8', privateKey);
             const iv = window.crypto.getRandomValues(new Uint8Array(12)); // 12 bytes is standard for AES-GCM
             const encryptedData = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, derivedKey, exportedKey);
-
-            // Helper to convert ArrayBuffer to Base64 string for transport
             const bufferToBase64 = (buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
-
             return {
                 encryptedKeyB64: bufferToBase64(encryptedData),
                 ivB64: bufferToBase64(iv)
@@ -541,18 +538,15 @@
          * Decrypts an encrypted private key using the derived AES key and IV.
          */
         async function decryptPrivateKey(encryptedKeyB64, derivedKey, ivB64) {
-            // Helper to convert Base64 string back to ArrayBuffer
             const base64ToBuffer = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
             try {
                 const iv = base64ToBuffer(ivB64);
                 const encryptedKey = base64ToBuffer(encryptedKeyB64);
                 const decryptedPkcs8 = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, derivedKey, encryptedKey);
-
-                // Import the decrypted key material back into a usable CryptoKey object.
                 const privateKey = await window.crypto.subtle.importKey(
                     'pkcs8',
                     decryptedPkcs8,
-                    { name: 'RSA-PSS', hash: 'SHA-256' }, // Use RSA-PSS for signatures
+                    { name: 'RSA-PSS', hash: 'SHA-256' },
                     true,
                     ['sign']
                 );
@@ -577,8 +571,8 @@
             const bufferToBase64 = (buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
             return bufferToBase64(signature);
         }
-
-        // Export public key to PEM format (Unchanged from original)
+        
+        // Export public key to PEM format
         async function exportPublicKey(key) {
             const exported = await window.crypto.subtle.exportKey("spki", key);
             const exportedAsString = String.fromCharCode.apply(null, new Uint8Array(exported));
@@ -586,10 +580,7 @@
             return `-----BEGIN PUBLIC KEY-----\n${exportedAsBase64}\n-----END PUBLIC KEY-----`;
         }
 
-        //=========================================================
-        // REWRITTEN AUTHENTICATION FUNCTIONS
-        //=========================================================
-
+        // --- NEW REGISTER FUNCTION ---
         async function register() {
             const username = document.getElementById('registerUsername').value;
             const password = document.getElementById('registerPassword').value;
@@ -603,32 +594,17 @@
             showAuthMessage('Registering... This may take a moment.', 'success');
 
             try {
-                // 1. Generate a new, truly random RSA key pair.
                 const keyPair = await window.crypto.subtle.generateKey(
-                    {
-                        name: "RSA-PSS", // Use RSA-PSS for signing
-                        modulusLength: 2048,
-                        publicExponent: new Uint8Array([1, 0, 1]),
-                        hash: "SHA-256",
-                    },
-                    true, // Key is extractable
+                    { name: "RSA-PSS", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+                    true,
                     ["sign", "verify"]
                 );
-
-                // 2. Generate a random salt for the KDF.
                 const salt = window.crypto.getRandomValues(new Uint8Array(16));
                 const bufferToBase64 = (buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
-
-                // 3. Derive a strong encryption key from the user's password and salt.
                 const derivedKey = await deriveKeyFromPassword(password, salt);
-
-                // 4. Encrypt the private key with the derived key.
                 const { encryptedKeyB64, ivB64 } = await encryptPrivateKey(keyPair.privateKey, derivedKey);
-
-                // 5. Export the public key to PEM format to be stored.
                 const publicKeyPem = await exportPublicKey(keyPair.publicKey);
 
-                // 6. Send all cryptographic materials to the server.
                 const response = await fetch('/api/create_user', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -642,9 +618,7 @@
                 });
 
                 const result = await response.json();
-
                 if (result.status === 'OK') {
-                    // Automatically log the user in after successful registration
                     sessionPrivateKey = keyPair.privateKey;
                     currentUserId = result.userid;
                     updateUserInterface();
@@ -659,54 +633,50 @@
             }
         }
 
+        // --- NEW LOGIN FUNCTION ---
         async function login() {
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
-
+            
             if (!username || !password) {
                 return showAuthMessage('Username and password are required.', 'error');
             }
             showAuthMessage('Logging in...', 'success');
 
             try {
-                // Step 1: Get user's encrypted data and a unique challenge from the server
                 const challengeResponse = await fetch('/api/get_login_challenge', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username })
                 });
-
+                
                 const loginData = await challengeResponse.json();
                 if (loginData.status !== 'OK') {
                     return showAuthMessage('Login failed: ' + loginData.error, 'error');
                 }
 
                 const { encrypted_private_key, salt: saltB64, iv: ivB64, nonce } = loginData;
-
-                // Step 2: Derive key from password to decrypt the private key
                 const base64ToBuffer = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
                 const salt = base64ToBuffer(saltB64);
                 const derivedKey = await deriveKeyFromPassword(password, salt);
                 const privateKey = await decryptPrivateKey(encrypted_private_key, derivedKey, ivB64);
-
+                
                 if (!privateKey) {
                     return showAuthMessage('Login failed: Invalid username or password.', 'error');
                 }
-
-                // Step 3: Sign the server's challenge with the now-unlocked private key
+                
                 const signature = await signChallenge(privateKey, nonce);
 
-                // Step 4: Send the signature back for verification
                 const verifyResponse = await fetch('/api/verify_login_signature', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, nonce, signature })
                 });
-
+                
                 const result = await verifyResponse.json();
-
+                
                 if (result.status === 'OK') {
-                    sessionPrivateKey = privateKey; // Store private key for this session
+                    sessionPrivateKey = privateKey;
                     currentUserId = result.userid;
                     updateUserInterface();
                     closeAuthModal();
@@ -719,44 +689,45 @@
             }
         }
 
+        // --- UPDATED LOGOUT FUNCTION ---
         function logout() {
             currentUserId = null;
             sessionPrivateKey = null; // Clear the session key
             updateUserInterface();
         }
-
-
+        
         //=========================================================
-        // UI AND APP LOGIC (LARGELY UNCHANGED)
+        // ORIGINAL UI AND APP LOGIC (UNCHANGED/REVERTED)
         //=========================================================
-
+        
         // Initialize the application
         async function init() {
             await loadTickers();
             await loadDeltaOrders();
             initChart();
+            
+            // Auto-refresh delta orders every 5 seconds
             setInterval(loadDeltaOrders, 5000);
         }
 
         // Load available tickers
         async function loadTickers() {
-            // ... (This function is unchanged)
             try {
                 const response = await fetch('/api/get_tickers');
                 const data = await response.json();
                 tickers = data;
-
+                
                 const select = document.getElementById('tickerSelect');
                 select.innerHTML = '<option value="">Select a ticker</option>';
-
+                
                 Object.keys(tickers).forEach(ticker => {
                     const option = document.createElement('option');
                     option.value = ticker;
                     option.textContent = `${ticker} - ${tickers[ticker]}`;
                     select.appendChild(option);
                 });
-
-                select.addEventListener('change', function () {
+                
+                select.addEventListener('change', function() {
                     if (this.value) {
                         loadHistoricalData(this.value);
                         document.getElementById('orderTicker').value = this.value;
@@ -769,7 +740,6 @@
 
         // Load historical data for chart
         async function loadHistoricalData(ticker) {
-            // ... (This function is unchanged)
             try {
                 const response = await fetch('/api/get_historical', {
                     method: 'POST',
@@ -781,9 +751,9 @@
                         limit: 100
                     })
                 });
-
+                
                 const result = await response.json();
-
+                
                 if (result.status === 'OK') {
                     updateChart(result.data, ticker);
                 }
@@ -794,7 +764,6 @@
 
         // Initialize chart
         function initChart() {
-            // ... (This function is unchanged)
             const ctx = document.getElementById('priceChart').getContext('2d');
             priceChart = new Chart(ctx, {
                 type: 'line',
@@ -838,25 +807,22 @@
 
         // Update chart with new data
         function updateChart(data, ticker) {
-            // ... (This function is unchanged)
             const chartData = [];
             const labels = [];
-
-            // Process historical data to create OHLC-like visualization
+            
             data.forEach(delta => {
                 if (delta.trades && delta.trades.length > 0) {
                     const tickerTrades = delta.trades.filter(trade => trade.ticker === ticker);
                     if (tickerTrades.length > 0) {
-                        // Calculate OHLC from trades in this delta
                         const prices = tickerTrades.map(trade => trade.price);
                         const volumes = tickerTrades.map(trade => trade.amount);
-
+                        
                         const open = prices[0];
                         const high = Math.max(...prices);
                         const low = Math.min(...prices);
                         const close = prices[prices.length - 1];
                         const volume = volumes.reduce((a, b) => a + b, 0);
-
+                        
                         chartData.push({
                             x: new Date(delta.delta_time),
                             y: close,
@@ -865,15 +831,14 @@
                             low: low,
                             volume: volume
                         });
-
+                        
                         labels.push(new Date(delta.delta_time).toLocaleTimeString());
                     }
                 }
             });
-
-            // Sort by time
+            
             chartData.sort((a, b) => a.x - b.x);
-
+            
             priceChart.data.labels = chartData.map(d => d.x);
             priceChart.data.datasets[0].data = chartData.map(d => d.y);
             priceChart.data.datasets[0].label = `${ticker} Price`;
@@ -882,27 +847,26 @@
 
         // Load current delta orders
         async function loadDeltaOrders() {
-            // ... (This function is unchanged)
             try {
                 const response = await fetch('/api/get_delta');
                 const orders = await response.json();
-
+                
                 const container = document.getElementById('deltaOrders');
-
+                
                 if (orders.length === 0) {
                     container.innerHTML = '<div style="text-align: center; color: #666;">No orders currently</div>';
                     return;
                 }
-
+                
                 container.innerHTML = '';
-
+                
                 orders.forEach(order => {
                     const orderDiv = document.createElement('div');
                     orderDiv.className = 'order-item';
-
+                    
                     const orderType = order.ordertype === 1 ? 'buy' : 'sell';
                     const orderTypeText = order.ordertype === 1 ? 'BUY' : 'SELL';
-
+                    
                     orderDiv.innerHTML = `
                         <div class="order-details">
                             <div class="order-ticker">${order.ticker}</div>
@@ -910,7 +874,7 @@
                         </div>
                         <div class="order-type-badge ${orderType}">${orderTypeText}</div>
                     `;
-
+                    
                     container.appendChild(orderDiv);
                 });
             } catch (error) {
@@ -918,37 +882,35 @@
             }
         }
 
-        // Select order type
+        // Select order type (Reverted to original)
         function selectOrderType(type) {
-            // ... (This function is unchanged)
             currentOrderType = type;
-
+            
             const buttons = document.querySelectorAll('.order-type-btn');
-            buttons.forEach(btn => btn.classList.remove('active', 'buy', 'sell'));
-
-            const selectedBtn = type === 1 ?
-                document.querySelector('.order-type-btn.buy') :
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            const selectedBtn = type === 1 ? 
+                document.querySelector('.order-type-btn.buy') : 
                 document.querySelector('.order-type-btn.sell');
-            selectedBtn.classList.add('active', type === 1 ? 'buy' : 'sell');
+            selectedBtn.classList.add('active');
         }
 
         // Place order
         async function placeOrder() {
-            // ... (This function is unchanged)
             if (!currentUserId) {
                 alert('Please login first');
                 return;
             }
-
+            
             const ticker = document.getElementById('orderTicker').value.toUpperCase();
             const price = parseFloat(document.getElementById('orderPrice').value);
             const amount = parseFloat(document.getElementById('orderAmount').value);
-
+            
             if (!ticker || !price || !amount) {
                 alert('Please fill in all fields');
                 return;
             }
-
+            
             try {
                 const response = await fetch('/api/add_order', {
                     method: 'POST',
@@ -963,13 +925,15 @@
                         ordertype: currentOrderType
                     })
                 });
-
+                
                 const result = await response.json();
-
+                
                 if (result.status === 'OK') {
                     alert('Order placed successfully!');
+                    // Clear form
                     document.getElementById('orderPrice').value = '';
                     document.getElementById('orderAmount').value = '';
+                    // Reload delta orders
                     loadDeltaOrders();
                 } else {
                     alert('Error: ' + result.error);
@@ -980,36 +944,47 @@
             }
         }
 
-        // --- UI Functions (Unchanged) ---
-        function openAuthModal() { document.getElementById('authModal').style.display = 'block'; }
+        // Authentication UI functions
+        function openAuthModal() {
+            document.getElementById('authModal').style.display = 'block';
+        }
+
         function closeAuthModal() {
             document.getElementById('authModal').style.display = 'none';
             document.getElementById('authMessage').innerHTML = '';
         }
+
         function switchTab(tab) {
-            document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const tabs = document.querySelectorAll('.modal-tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            
             document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
             document.getElementById(tab + 'Tab').classList.add('active');
+            
             document.getElementById('authMessage').innerHTML = '';
         }
+
+        // Update user interface (Reverted to original)
         function updateUserInterface() {
             const userInfo = document.getElementById('userInfo');
             const loginBtn = document.getElementById('loginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
-            const authMessage = document.getElementById('authMessage');
-
+            
             if (currentUserId) {
-                userInfo.textContent = `User ID: ${currentUserId.substring(0, 12)}...`; // Show truncated ID
+                userInfo.textContent = `User ID: ${currentUserId}`;
                 loginBtn.style.display = 'none';
                 logoutBtn.style.display = 'block';
-                authMessage.innerHTML = '';
             } else {
                 userInfo.textContent = 'Not logged in';
                 loginBtn.style.display = 'block';
                 logoutBtn.style.display = 'none';
             }
         }
+
+        // Show authentication message
         function showAuthMessage(message, type) {
             const authMessage = document.getElementById('authMessage');
             authMessage.innerHTML = `<div class="${type}-message">${message}</div>`;
@@ -1017,11 +992,14 @@
 
         // Initialize order type selection
         selectOrderType(1);
+
         // Initialize the application when page loads
         window.addEventListener('load', init);
+
         // Close modal when clicking outside
-        window.addEventListener('click', function (event) {
-            if (event.target === document.getElementById('authModal')) {
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('authModal');
+            if (event.target === modal) {
                 closeAuthModal();
             }
         });
