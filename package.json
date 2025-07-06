@@ -1,6 +1,7 @@
 {
     "type": "module",
     "dependencies": {
+        "package.json": "^2.0.1",
         "pg": "^8.16.3"
     }
 }
