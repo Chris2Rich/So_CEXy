@@ -805,7 +805,7 @@
             initChart();
 
             // Auto-refresh delta orders every 5 seconds
-            setInterval(updateOrderBook, 5000);
+            setInterval(updateOrderBook, 1000);
         }
 
         // Load available tickers
@@ -1009,7 +1009,7 @@
                     const sellsContainer = document.createElement('div');
                     sellsContainer.className = 'sells-container';
                     // Reverse here to show best (lowest) price next to center
-                    data.sells.reverse().forEach(({ price, amount }) => {
+                    data.sells.forEach(({ price, amount }) => {
                         sellsContainer.innerHTML += `
                     <div class="order-box sell">
                         <div class="price">${price.toFixed(2)}</div>
