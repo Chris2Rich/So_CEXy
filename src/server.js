@@ -36,7 +36,7 @@ const client = new Client({
 await client.connect()
 
 let delta = {}
-const nonceStore = new map()
+const nonceStore = new Map()
 
 function read_stream(req) {
     return new Promise((resolve, reject) => {

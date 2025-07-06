@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoCexy | Demo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -357,18 +359,19 @@
             .main-content {
                 grid-template-columns: 1fr;
             }
-            
+
             .header {
                 flex-direction: column;
                 gap: 15px;
             }
-            
+
             .user-section {
                 justify-content: center;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -376,7 +379,8 @@
             <div class="user-section">
                 <div class="user-info" id="userInfo">Not logged in</div>
                 <button class="btn btn-primary" id="loginBtn" onclick="openAuthModal()">Login / Register</button>
-                <button class="btn btn-secondary" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>
+                <button class="btn btn-secondary" id="logoutBtn" onclick="logout()"
+                    style="display: none;">Logout</button>
             </div>
         </div>
 
@@ -410,11 +414,13 @@
                         </div>
                         <div class="form-group">
                             <label>Price</label>
-                            <input type="number" class="form-input" id="orderPrice" placeholder="Enter price" step="0.01">
+                            <input type="number" class="form-input" id="orderPrice" placeholder="Enter price"
+                                step="0.01">
                         </div>
                         <div class="form-group">
                             <label>Amount</label>
-                            <input type="number" class="form-input" id="orderAmount" placeholder="Enter amount" step="0.01">
+                            <input type="number" class="form-input" id="orderAmount" placeholder="Enter amount"
+                                step="0.01">
                         </div>
                         <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
                     </div>
@@ -439,10 +445,13 @@
             </div>
             <div class="modal-body">
                 <div class="modal-tabs">
-                    <button class="modal-tab active" style="border-top-left-radius: 25px; border-bottom-left-radius: 25px;" onclick="switchTab('login')">Login</button>
-                    <button class="modal-tab" style="border-top-right-radius: 25px; border-bottom-right-radius: 25px;" onclick="switchTab('register')">Register</button>
+                    <button class="modal-tab active"
+                        style="border-top-left-radius: 25px; border-bottom-left-radius: 25px;"
+                        onclick="switchTab('login')">Login</button>
+                    <button class="modal-tab" style="border-top-right-radius: 25px; border-bottom-right-radius: 25px;"
+                        onclick="switchTab('register')">Register</button>
                 </div>
-                
+
                 <div id="loginTab" class="tab-content active">
                     <div class="form-group">
                         <label>Username</label>
@@ -452,9 +461,10 @@
                         <label>Password</label>
                         <input type="password" class="form-input" id="loginPassword" placeholder="Enter password">
                     </div>
-                    <button class="btn btn-primary" onclick="login()" style="width: 100%; margin-top: 15px;">Login</button>
+                    <button class="btn btn-primary" onclick="login()"
+                        style="width: 100%; margin-top: 15px;">Login</button>
                 </div>
-                
+
                 <div id="registerTab" class="tab-content">
                     <div class="form-group">
                         <label>Username</label>
@@ -464,9 +474,10 @@
                         <label>Password</label>
                         <input type="password" class="form-input" id="registerPassword" placeholder="Enter password">
                     </div>
-                    <button class="btn btn-primary" onclick="register()" style="width: 100%; margin-top: 15px;">Register</button>
+                    <button class="btn btn-primary" onclick="register()"
+                        style="width: 100%; margin-top: 15px;">Register</button>
                 </div>
-                
+
                 <div id="authMessage"></div>
             </div>
         </div>
@@ -516,16 +527,16 @@
             const exportedKey = await window.crypto.subtle.exportKey('pkcs8', privateKey);
             const iv = window.crypto.getRandomValues(new Uint8Array(12)); // 12 bytes is standard for AES-GCM
             const encryptedData = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, derivedKey, exportedKey);
-            
+
             // Helper to convert ArrayBuffer to Base64 string for transport
             const bufferToBase64 = (buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
-            
+
             return {
                 encryptedKeyB64: bufferToBase64(encryptedData),
                 ivB64: bufferToBase64(iv)
             };
         }
-        
+
         /**
          * Decrypts an encrypted private key using the derived AES key and IV.
          */
@@ -551,7 +562,7 @@
                 return null;
             }
         }
-        
+
         /**
          * Signs a challenge string with a private key.
          */
@@ -582,7 +593,7 @@
         async function register() {
             const username = document.getElementById('registerUsername').value;
             const password = document.getElementById('registerPassword').value;
-            
+
             if (!username || !password) {
                 return showAuthMessage('Username and password are required.', 'error');
             }
@@ -613,10 +624,10 @@
 
                 // 4. Encrypt the private key with the derived key.
                 const { encryptedKeyB64, ivB64 } = await encryptPrivateKey(keyPair.privateKey, derivedKey);
-                
+
                 // 5. Export the public key to PEM format to be stored.
                 const publicKeyPem = await exportPublicKey(keyPair.publicKey);
-                
+
                 // 6. Send all cryptographic materials to the server.
                 const response = await fetch('/api/create_user', {
                     method: 'POST',
@@ -629,9 +640,9 @@
                         iv: ivB64
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.status === 'OK') {
                     // Automatically log the user in after successful registration
                     sessionPrivateKey = keyPair.privateKey;
@@ -651,7 +662,7 @@
         async function login() {
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
-            
+
             if (!username || !password) {
                 return showAuthMessage('Username and password are required.', 'error');
             }
@@ -664,7 +675,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username })
                 });
-                
+
                 const loginData = await challengeResponse.json();
                 if (loginData.status !== 'OK') {
                     return showAuthMessage('Login failed: ' + loginData.error, 'error');
@@ -677,11 +688,11 @@
                 const salt = base64ToBuffer(saltB64);
                 const derivedKey = await deriveKeyFromPassword(password, salt);
                 const privateKey = await decryptPrivateKey(encrypted_private_key, derivedKey, ivB64);
-                
+
                 if (!privateKey) {
                     return showAuthMessage('Login failed: Invalid username or password.', 'error');
                 }
-                
+
                 // Step 3: Sign the server's challenge with the now-unlocked private key
                 const signature = await signChallenge(privateKey, nonce);
 
@@ -691,9 +702,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, nonce, signature })
                 });
-                
+
                 const result = await verifyResponse.json();
-                
+
                 if (result.status === 'OK') {
                     sessionPrivateKey = privateKey; // Store private key for this session
                     currentUserId = result.userid;
@@ -718,7 +729,7 @@
         //=========================================================
         // UI AND APP LOGIC (LARGELY UNCHANGED)
         //=========================================================
-        
+
         // Initialize the application
         async function init() {
             await loadTickers();
@@ -734,18 +745,18 @@
                 const response = await fetch('/api/get_tickers');
                 const data = await response.json();
                 tickers = data;
-                
+
                 const select = document.getElementById('tickerSelect');
                 select.innerHTML = '<option value="">Select a ticker</option>';
-                
+
                 Object.keys(tickers).forEach(ticker => {
                     const option = document.createElement('option');
                     option.value = ticker;
                     option.textContent = `${ticker} - ${tickers[ticker]}`;
                     select.appendChild(option);
                 });
-                
-                select.addEventListener('change', function() {
+
+                select.addEventListener('change', function () {
                     if (this.value) {
                         loadHistoricalData(this.value);
                         document.getElementById('orderTicker').value = this.value;
@@ -770,9 +781,9 @@
                         limit: 100
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.status === 'OK') {
                     updateChart(result.data, ticker);
                 }
@@ -830,7 +841,7 @@
             // ... (This function is unchanged)
             const chartData = [];
             const labels = [];
-            
+
             // Process historical data to create OHLC-like visualization
             data.forEach(delta => {
                 if (delta.trades && delta.trades.length > 0) {
@@ -839,13 +850,13 @@
                         // Calculate OHLC from trades in this delta
                         const prices = tickerTrades.map(trade => trade.price);
                         const volumes = tickerTrades.map(trade => trade.amount);
-                        
+
                         const open = prices[0];
                         const high = Math.max(...prices);
                         const low = Math.min(...prices);
                         const close = prices[prices.length - 1];
                         const volume = volumes.reduce((a, b) => a + b, 0);
-                        
+
                         chartData.push({
                             x: new Date(delta.delta_time),
                             y: close,
@@ -854,15 +865,15 @@
                             low: low,
                             volume: volume
                         });
-                        
+
                         labels.push(new Date(delta.delta_time).toLocaleTimeString());
                     }
                 }
             });
-            
+
             // Sort by time
             chartData.sort((a, b) => a.x - b.x);
-            
+
             priceChart.data.labels = chartData.map(d => d.x);
             priceChart.data.datasets[0].data = chartData.map(d => d.y);
             priceChart.data.datasets[0].label = `${ticker} Price`;
@@ -875,23 +886,23 @@
             try {
                 const response = await fetch('/api/get_delta');
                 const orders = await response.json();
-                
+
                 const container = document.getElementById('deltaOrders');
-                
+
                 if (orders.length === 0) {
                     container.innerHTML = '<div style="text-align: center; color: #666;">No orders currently</div>';
                     return;
                 }
-                
+
                 container.innerHTML = '';
-                
+
                 orders.forEach(order => {
                     const orderDiv = document.createElement('div');
                     orderDiv.className = 'order-item';
-                    
+
                     const orderType = order.ordertype === 1 ? 'buy' : 'sell';
                     const orderTypeText = order.ordertype === 1 ? 'BUY' : 'SELL';
-                    
+
                     orderDiv.innerHTML = `
                         <div class="order-details">
                             <div class="order-ticker">${order.ticker}</div>
@@ -899,7 +910,7 @@
                         </div>
                         <div class="order-type-badge ${orderType}">${orderTypeText}</div>
                     `;
-                    
+
                     container.appendChild(orderDiv);
                 });
             } catch (error) {
@@ -911,12 +922,12 @@
         function selectOrderType(type) {
             // ... (This function is unchanged)
             currentOrderType = type;
-            
+
             const buttons = document.querySelectorAll('.order-type-btn');
             buttons.forEach(btn => btn.classList.remove('active', 'buy', 'sell'));
-            
-            const selectedBtn = type === 1 ? 
-                document.querySelector('.order-type-btn.buy') : 
+
+            const selectedBtn = type === 1 ?
+                document.querySelector('.order-type-btn.buy') :
                 document.querySelector('.order-type-btn.sell');
             selectedBtn.classList.add('active', type === 1 ? 'buy' : 'sell');
         }
@@ -928,16 +939,16 @@
                 alert('Please login first');
                 return;
             }
-            
+
             const ticker = document.getElementById('orderTicker').value.toUpperCase();
             const price = parseFloat(document.getElementById('orderPrice').value);
             const amount = parseFloat(document.getElementById('orderAmount').value);
-            
+
             if (!ticker || !price || !amount) {
                 alert('Please fill in all fields');
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/add_order', {
                     method: 'POST',
@@ -952,9 +963,9 @@
                         ordertype: currentOrderType
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.status === 'OK') {
                     alert('Order placed successfully!');
                     document.getElementById('orderPrice').value = '';
@@ -1003,13 +1014,13 @@
             const authMessage = document.getElementById('authMessage');
             authMessage.innerHTML = `<div class="${type}-message">${message}</div>`;
         }
-        
+
         // Initialize order type selection
         selectOrderType(1);
         // Initialize the application when page loads
         window.addEventListener('load', init);
         // Close modal when clicking outside
-        window.addEventListener('click', function(event) {
+        window.addEventListener('click', function (event) {
             if (event.target === document.getElementById('authModal')) {
                 closeAuthModal();
             }
