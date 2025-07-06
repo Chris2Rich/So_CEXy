@@ -122,24 +122,24 @@ async function handleapi(req) {
                 // Get user's current balance
                 const userResult = await client.query("SELECT amount FROM users WHERE id = $1", [userid])
                 const currentBalance = parseFloat(userResult.rows[0].amount)
-                
+
                 if (ordertype == 1) {
                     // BUY order - check if user has enough cash
                     const requiredCash = amount * price
                     if (currentBalance < requiredCash) {
-                        return return_error(`Insufficient cash. Required: ${requiredCash}, Available: ${currentBalance}` )
+                        return return_error(`Insufficient cash. Required: ${requiredCash}, Available: ${currentBalance}`)
                     }
                 } else if (ordertype == -1) {
                     // SELL order - check if user has enough of the asset
                     const positionResult = await client.query(
-                        "SELECT quantity FROM positions WHERE user_id = $1 AND ticker = $2", 
+                        "SELECT quantity FROM positions WHERE user_id = $1 AND ticker = $2",
                         [userid, ticker]
                     )
-                    
+
                     const currentPosition = positionResult.rowCount > 0 ? parseFloat(positionResult.rows[0].quantity) : 0
-                    
+
                     if (currentPosition < amount) {
-                        return return_error(`Insufficient ${ticker} holdings. Required: ${amount}, Available: ${currentPosition}` )
+                        return return_error(`Insufficient ${ticker} holdings. Required: ${amount}, Available: ${currentPosition}`)
                     }
                 }
             } catch (error) {
@@ -434,35 +434,35 @@ async function handleapi(req) {
 
 function resolvedelta(delta) {
     const trades = []
-    
+
     // Group orders by ticker
     const tickerGroups = {}
     for (const [id, order] of Object.entries(delta)) {
         if (!order.ticker) continue
-        
+
         if (!tickerGroups[order.ticker]) {
             tickerGroups[order.ticker] = {}
         }
         tickerGroups[order.ticker][id] = order
     }
-    
+
     for (const [ticker, group] of Object.entries(tickerGroups)) {
         const buyOrders = []
         const sellOrders = []
-        
+
         // Track users who have already placed orders for this ticker
         const userOrderTracker = new Map()
-        
+
         for (const [id, order] of Object.entries(group)) {
             const userKey = `${order.userid}-${order.ordertype}` // Track by user and order type
-            
+
             if (!userOrderTracker.has(userKey)) {
                 // First order from this user for this order type
                 userOrderTracker.set(userKey, {
                     id: id,
                     time: new Date(order.time)
                 })
-                
+
                 if (order.ordertype == 1) {
                     buyOrders.push({
                         ...order,
@@ -478,11 +478,11 @@ function resolvedelta(delta) {
                 // Check if this order is earlier than the tracked one
                 const currentOrderTime = new Date(order.time)
                 const trackedOrder = userOrderTracker.get(userKey)
-                
+
                 if (currentOrderTime < trackedOrder.time) {
                     // This order is earlier, replace the tracked one
                     const oldOrderId = trackedOrder.id
-                    
+
                     // Remove the old order from the appropriate array
                     if (order.ordertype == 1) {
                         const oldIndex = buyOrders.findIndex(o => o.id == oldOrderId)
@@ -503,13 +503,13 @@ function resolvedelta(delta) {
                             id
                         })
                     }
-                    
+
                     // Update tracker
                     userOrderTracker.set(userKey, {
                         id: id,
                         time: currentOrderTime
                     })
-                    
+
                     // Remove the old order from delta
                     delete delta[oldOrderId]
                 } else {
@@ -518,17 +518,17 @@ function resolvedelta(delta) {
                 }
             }
         }
-        
+
         // Sort orders for matching
         buyOrders.sort((a, b) => b.price - a.price || new Date(a.time) - new Date(b.time))
         sellOrders.sort((a, b) => a.price - b.price || new Date(a.time) - new Date(b.time))
-        
+
         // Match orders
         let i = 0, j = 0
         while (i < buyOrders.length && j < sellOrders.length) {
             const buy = buyOrders[i]
             const sell = sellOrders[j]
-            
+
             if (buy.price >= sell.price) {
                 const quantity = Math.min(buy.amount, sell.amount)
                 trades.push({
@@ -545,17 +545,17 @@ function resolvedelta(delta) {
                         userid: sell.userid
                     }
                 })
-                
+
                 buy.amount -= quantity
                 sell.amount -= quantity
-                
+
                 if (buy.amount == 0) i++
                 if (sell.amount == 0) j++
             } else {
                 break
             }
         }
-        
+
         // Remove fully matched orders from delta
         for (let k = 0; k < i; k++) {
             delete delta[buyOrders[k].id]
@@ -564,7 +564,7 @@ function resolvedelta(delta) {
             delete delta[sellOrders[k].id]
         }
     }
-    
+
     return trades
 }
 
@@ -618,7 +618,7 @@ async function adddeltadb(delta, trades) {
                         ELSE positions.average_price
                     END,
                     updated_at = CURRENT_TIMESTAMP
-            `, [sell.userid, ticker, amount, price])            
+            `, [sell.userid, ticker, amount, price])
 
             await client.query("INSERT INTO trades (delta_id, ticker, price, amount, buy_order_id, sell_order_id, buy_user_id, sell_user_id, trade_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)", [
                 deltaid,
