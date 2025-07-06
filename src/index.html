@@ -5,9 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoCexy | Demo</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
-    <script
-        src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js" defer></script>
     <style>
         * {
             margin: 0;
@@ -482,7 +480,6 @@
             </div>
         </div>
     </div>
-
     <script>
         // Global variables
         let currentUserId = null;
@@ -571,7 +568,7 @@
             const bufferToBase64 = (buffer) => btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
             return bufferToBase64(signature);
         }
-        
+
         // Export public key to PEM format
         async function exportPublicKey(key) {
             const exported = await window.crypto.subtle.exportKey("spki", key);
@@ -637,7 +634,7 @@
         async function login() {
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
-            
+
             if (!username || !password) {
                 return showAuthMessage('Username and password are required.', 'error');
             }
@@ -649,7 +646,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username })
                 });
-                
+
                 const loginData = await challengeResponse.json();
                 if (loginData.status !== 'OK') {
                     return showAuthMessage('Login failed: ' + loginData.error, 'error');
@@ -660,11 +657,11 @@
                 const salt = base64ToBuffer(saltB64);
                 const derivedKey = await deriveKeyFromPassword(password, salt);
                 const privateKey = await decryptPrivateKey(encrypted_private_key, derivedKey, ivB64);
-                
+
                 if (!privateKey) {
                     return showAuthMessage('Login failed: Invalid username or password.', 'error');
                 }
-                
+
                 const signature = await signChallenge(privateKey, nonce);
 
                 const verifyResponse = await fetch('/api/verify_login_signature', {
@@ -672,9 +669,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, nonce, signature })
                 });
-                
+
                 const result = await verifyResponse.json();
-                
+
                 if (result.status === 'OK') {
                     sessionPrivateKey = privateKey;
                     currentUserId = result.userid;
@@ -695,17 +692,17 @@
             sessionPrivateKey = null; // Clear the session key
             updateUserInterface();
         }
-        
+
         //=========================================================
         // ORIGINAL UI AND APP LOGIC (UNCHANGED/REVERTED)
         //=========================================================
-        
+
         // Initialize the application
         async function init() {
             await loadTickers();
             await loadDeltaOrders();
             initChart();
-            
+
             // Auto-refresh delta orders every 5 seconds
             setInterval(loadDeltaOrders, 5000);
         }
@@ -716,18 +713,18 @@
                 const response = await fetch('/api/get_tickers');
                 const data = await response.json();
                 tickers = data;
-                
+
                 const select = document.getElementById('tickerSelect');
                 select.innerHTML = '<option value="">Select a ticker</option>';
-                
+
                 Object.keys(tickers).forEach(ticker => {
                     const option = document.createElement('option');
                     option.value = ticker;
                     option.textContent = `${ticker} - ${tickers[ticker]}`;
                     select.appendChild(option);
                 });
-                
-                select.addEventListener('change', function() {
+
+                select.addEventListener('change', function () {
                     if (this.value) {
                         loadHistoricalData(this.value);
                         document.getElementById('orderTicker').value = this.value;
@@ -751,9 +748,9 @@
                         limit: 100
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.status === 'OK') {
                     updateChart(result.data, ticker);
                 }
@@ -820,14 +817,14 @@
             if (!priceChart) return; // DEFENSIVE FIX: Prevents error if chart isn't ready.
 
             const chartData = [];
-            
+
             data.forEach(delta => {
                 if (delta.trades && delta.trades.length > 0) {
                     const tickerTrades = delta.trades.filter(trade => trade.ticker === ticker);
                     if (tickerTrades.length > 0) {
                         const prices = tickerTrades.map(trade => trade.price);
                         const close = prices[prices.length - 1];
-                        
+
                         chartData.push({
                             x: new Date(delta.delta_time),
                             y: close
@@ -835,10 +832,10 @@
                     }
                 }
             });
-            
+
             chartData.sort((a, b) => a.x - b.x);
-            
-            priceChart.data.datasets[0].data = chartData; 
+
+            priceChart.data.datasets[0].data = chartData;
             priceChart.data.datasets[0].label = `${ticker} Price`;
             priceChart.update();
         }
@@ -848,23 +845,23 @@
             try {
                 const response = await fetch('/api/get_delta');
                 const orders = await response.json();
-                
+
                 const container = document.getElementById('deltaOrders');
-                
+
                 if (orders.length === 0) {
                     container.innerHTML = '<div style="text-align: center; color: #666;">No orders currently</div>';
                     return;
                 }
-                
+
                 container.innerHTML = '';
-                
+
                 orders.forEach(order => {
                     const orderDiv = document.createElement('div');
                     orderDiv.className = 'order-item';
-                    
+
                     const orderType = order.ordertype === 1 ? 'buy' : 'sell';
                     const orderTypeText = order.ordertype === 1 ? 'BUY' : 'SELL';
-                    
+
                     orderDiv.innerHTML = `
                         <div class="order-details">
                             <div class="order-ticker">${order.ticker}</div>
@@ -872,7 +869,7 @@
                         </div>
                         <div class="order-type-badge ${orderType}">${orderTypeText}</div>
                     `;
-                    
+
                     container.appendChild(orderDiv);
                 });
             } catch (error) {
@@ -883,12 +880,12 @@
         // Select order type (Reverted to original)
         function selectOrderType(type) {
             currentOrderType = type;
-            
+
             const buttons = document.querySelectorAll('.order-type-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
-            
-            const selectedBtn = type === 1 ? 
-                document.querySelector('.order-type-btn.buy') : 
+
+            const selectedBtn = type === 1 ?
+                document.querySelector('.order-type-btn.buy') :
                 document.querySelector('.order-type-btn.sell');
             selectedBtn.classList.add('active');
         }
@@ -899,16 +896,16 @@
                 alert('Please login first');
                 return;
             }
-            
+
             const ticker = document.getElementById('orderTicker').value.toUpperCase();
             const price = parseFloat(document.getElementById('orderPrice').value);
             const amount = parseFloat(document.getElementById('orderAmount').value);
-            
+
             if (!ticker || !price || !amount) {
                 alert('Please fill in all fields');
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/add_order', {
                     method: 'POST',
@@ -923,9 +920,9 @@
                         ordertype: currentOrderType
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.status === 'OK') {
                     alert('Order placed successfully!');
                     // Clear form
@@ -955,13 +952,13 @@
         function switchTab(tab) {
             const tabs = document.querySelectorAll('.modal-tab');
             const contents = document.querySelectorAll('.tab-content');
-            
+
             tabs.forEach(t => t.classList.remove('active'));
             contents.forEach(c => c.classList.remove('active'));
-            
+
             document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
             document.getElementById(tab + 'Tab').classList.add('active');
-            
+
             document.getElementById('authMessage').innerHTML = '';
         }
 
@@ -970,7 +967,7 @@
             const userInfo = document.getElementById('userInfo');
             const loginBtn = document.getElementById('loginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
-            
+
             if (currentUserId) {
                 userInfo.textContent = `User ID: ${currentUserId}`;
                 loginBtn.style.display = 'none';
@@ -995,7 +992,7 @@
         window.addEventListener('DOMContentLoaded', init);
 
         // Close modal when clicking outside
-        window.addEventListener('click', function(event) {
+        window.addEventListener('click', function (event) {
             const modal = document.getElementById('authModal');
             if (event.target === modal) {
                 closeAuthModal();
