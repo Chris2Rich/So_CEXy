@@ -488,7 +488,7 @@ function resolvedelta(delta) {
                 const currentOrderTime = new Date(order.time)
                 const trackedOrder = userOrderTracker.get(userKey)
 
-                if (currentOrderTime < trackedOrder.time) {
+                if (currentOrderTime > trackedOrder.time) {
                     // This order is earlier, replace the tracked one
                     const oldOrderId = trackedOrder.id
 

@@ -1,7 +1,6 @@
 // market_maker_bot.js
 import https from "https";
 import axios from "axios";
-import crypto from "crypto"
 
 // --- BOT CONFIGURATION ---
 
@@ -10,7 +9,7 @@ const MARKET_MAKER_USER_ID = "327af47f-413a-4f26-bda9-26516a517e4c"; // Username
 
 // Since the server uses a self-signed cert for local dev
 const httpsAgent = new https.Agent({
-    rejectUnauthorized: false, 
+    rejectUnauthorized: false,
 });
 
 const marketConfig = {
@@ -99,7 +98,7 @@ async function runMarketMakingCycle() {
 // --- START THE BOT ---
 
 // Run the market making cycle every 8 seconds
-const CYCLE_INTERVAL_MS = 8000;
+const CYCLE_INTERVAL_MS = 5000;
 console.log(`Starting pseudo-random market maker bot for user ID: ${MARKET_MAKER_USER_ID}`);
 console.log(`Bot will update orders every ${CYCLE_INTERVAL_MS / 1000} seconds.`);
 
