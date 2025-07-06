@@ -768,7 +768,7 @@
             priceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: [],
+                    // Labels will be generated automatically by the time scale
                     datasets: [{
                         label: 'Price',
                         data: [],
@@ -795,11 +795,21 @@
                                 color: 'rgba(0, 0, 0, 0.1)'
                             }
                         },
+                        // --- CORRECTED SECTION ---
                         x: {
+                            type: 'time', // Specify the axis type is 'time'
+                            time: {
+                                unit: 'minute', // Set the display unit
+                                tooltipFormat: 'PPpp', // Format for tooltips e.g., "Jul 6, 2025, 7:12:00 PM"
+                                displayFormats: {
+                                    minute: 'h:mm a' // Format for axis labels e.g., "7:12 PM"
+                                }
+                            },
                             grid: {
                                 color: 'rgba(0, 0, 0, 0.1)'
                             }
                         }
+                        // --- END CORRECTION ---
                     }
                 }
             });
@@ -808,41 +818,36 @@
         // Update chart with new data
         function updateChart(data, ticker) {
             const chartData = [];
-            const labels = [];
+            // The separate 'labels' array is no longer needed
             
             data.forEach(delta => {
                 if (delta.trades && delta.trades.length > 0) {
                     const tickerTrades = delta.trades.filter(trade => trade.ticker === ticker);
                     if (tickerTrades.length > 0) {
                         const prices = tickerTrades.map(trade => trade.price);
-                        const volumes = tickerTrades.map(trade => trade.amount);
-                        
-                        const open = prices[0];
-                        const high = Math.max(...prices);
-                        const low = Math.min(...prices);
                         const close = prices[prices.length - 1];
-                        const volume = volumes.reduce((a, b) => a + b, 0);
                         
+                        // --- CORRECTED SECTION ---
+                        // Create objects with x and y properties for the time scale
                         chartData.push({
                             x: new Date(delta.delta_time),
-                            y: close,
-                            open: open,
-                            high: high,
-                            low: low,
-                            volume: volume
+                            y: close
                         });
-                        
-                        labels.push(new Date(delta.delta_time).toLocaleTimeString());
+                        // --- END CORRECTION ---
                     }
                 }
             });
             
+            // Sort data chronologically
             chartData.sort((a, b) => a.x - b.x);
             
-            priceChart.data.labels = chartData.map(d => d.x);
-            priceChart.data.datasets[0].data = chartData.map(d => d.y);
+            // --- CORRECTED SECTION ---
+            // Pass the array of {x, y} objects directly to the chart.
+            // Do not manually set the 'labels' array.
+            priceChart.data.datasets[0].data = chartData; 
             priceChart.data.datasets[0].label = `${ticker} Price`;
             priceChart.update();
+            // --- END CORRECTION ---
         }
 
         // Load current delta orders
