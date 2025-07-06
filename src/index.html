@@ -955,97 +955,117 @@
         }
 
         async function updateOrderBook() {
-            try {
-                const response = await fetch('/api/get_delta');
-                const delta = await response.json();
+    try {
+        const response = await fetch('/api/get_delta');
+        const delta = await response.json();
 
-                // 1. Group orders by ticker and aggregate amounts for each price level
-                const orderBooks = {};
-                for (const order of delta) {
-                    if (!orderBooks[order.ticker]) {
-                        orderBooks[order.ticker] = { buys: {}, sells: {} };
-                    }
-
-                    const side = order.ordertype === 1 ? 'buys' : 'sells';
-                    const priceLevel = orderBooks[order.ticker][side];
-
-                    // Add the amount to the existing total at that price, or initialize it
-                    priceLevel[order.price] = (priceLevel[order.price] || 0) + order.amount;
-                }
-
-                // 2. Convert the grouped data into sorted arrays for display
-                const processedTickers = {};
-                for (const ticker in orderBooks) {
-                    processedTickers[ticker] = {
-                        // Buys are sorted high-to-low (best price first)
-                        buys: Object.entries(orderBooks[ticker].buys)
-                            .map(([price, amount]) => ({ price: parseFloat(price), amount }))
-                            .sort((a, b) => b.price - a.price),
-                        // Sells are sorted low-to-high (best price first)
-                        sells: Object.entries(orderBooks[ticker].sells)
-                            .map(([price, amount]) => ({ price: parseFloat(price), amount }))
-                            .sort((a, b) => a.price - b.price)
-                    };
-                }
-
-                // 3. Get a sorted list of tickers to display, putting the selected one at the top
-                const sortedTickerNames = Object.keys(processedTickers).sort((a, b) => {
-                    if (a === selectedTicker) return -1; // selectedTicker always comes first
-                    if (b === selectedTicker) return 1;
-                    return a.localeCompare(b); // Sort the rest alphabetically
-                });
-
-                // 4. Build and render the HTML
-                const container = document.getElementById('orderbook-container');
-                container.innerHTML = ''; // Clear the container of old content
-
-                for (const ticker of sortedTickerNames) {
-                    const data = processedTickers[ticker];
-
-                    const tickerRow = document.createElement('div');
-                    tickerRow.className = 'ticker-row';
-
-                    // --- Build Sells (Asks) ---
-                    const sellsContainer = document.createElement('div');
-                    sellsContainer.className = 'sells-container';
-                    // Reverse here to show best (lowest) price next to center
-                    data.sells.forEach(({ price, amount }) => {
-                        sellsContainer.innerHTML += `
-                    <div class="order-box sell">
-                        <div class="price">${price.toFixed(2)}</div>
-                        <div class="amount">${amount}</div>
-                    </div>`;
-                    });
-
-                    // --- Build Ticker Info ---
-                    const tickerInfo = document.createElement('div');
-                    tickerInfo.className = 'ticker-info-middle';
-                    tickerInfo.textContent = ticker;
-
-                    // --- Build Buys (Bids) ---
-                    const buysContainer = document.createElement('div');
-                    buysContainer.className = 'buys-container';
-                    data.buys.forEach(({ price, amount }) => {
-                        buysContainer.innerHTML += `
-                    <div class="order-box buy">
-                        <div class="price">${price.toFixed(2)}</div>
-                        <div class="amount">${amount}</div>
-                    </div>`;
-                    });
-
-                    // Append all parts to the row
-                    tickerRow.appendChild(sellsContainer);
-                    tickerRow.appendChild(tickerInfo);
-                    tickerRow.appendChild(buysContainer);
-
-                    // Add the completed row to the main container
-                    container.appendChild(tickerRow);
-                }
-
-            } catch (error) {
-                console.error('Failed to update order book:', error);
+        // 1. Group orders by ticker and aggregate amounts for each price level
+        const orderBooks = {};
+        for (const order of delta) {
+            if (!orderBooks[order.ticker]) {
+                orderBooks[order.ticker] = { buys: {}, sells: {} };
             }
+
+            const side = order.ordertype === 1 ? 'buys' : 'sells';
+            const priceLevel = orderBooks[order.ticker][side];
+
+            // Add the amount to the existing total at that price, or initialize it
+            priceLevel[order.price] = (priceLevel[order.price] || 0) + order.amount;
         }
+
+        // 2. Find the best bid and ask for each ticker
+        const processedTickers = {};
+        for (const ticker in orderBooks) {
+            const buysEntries = Object.entries(orderBooks[ticker].buys);
+            const sellsEntries = Object.entries(orderBooks[ticker].sells);
+
+            // Find highest buy price (best bid)
+            let bestBid = null;
+            if (buysEntries.length > 0) {
+                const highestBuyEntry = buysEntries.reduce((max, [price, amount]) => {
+                    return parseFloat(price) > parseFloat(max[0]) ? [price, amount] : max;
+                });
+                bestBid = {
+                    price: parseFloat(highestBuyEntry[0]),
+                    amount: highestBuyEntry[1]
+                };
+            }
+
+            // Find lowest sell price (best ask)
+            let bestAsk = null;
+            if (sellsEntries.length > 0) {
+                const lowestSellEntry = sellsEntries.reduce((min, [price, amount]) => {
+                    return parseFloat(price) < parseFloat(min[0]) ? [price, amount] : min;
+                });
+                bestAsk = {
+                    price: parseFloat(lowestSellEntry[0]),
+                    amount: lowestSellEntry[1]
+                };
+            }
+
+            processedTickers[ticker] = {
+                bestBid,
+                bestAsk
+            };
+        }
+
+        // 3. Get a sorted list of tickers to display, putting the selected one at the top
+        const sortedTickerNames = Object.keys(processedTickers).sort((a, b) => {
+            if (a === selectedTicker) return -1; // selectedTicker always comes first
+            if (b === selectedTicker) return 1;
+            return a.localeCompare(b); // Sort the rest alphabetically
+        });
+
+        // 4. Build and render the HTML
+        const container = document.getElementById('orderbook-container');
+        container.innerHTML = ''; // Clear the container of old content
+
+        for (const ticker of sortedTickerNames) {
+            const data = processedTickers[ticker];
+
+            const tickerRow = document.createElement('div');
+            tickerRow.className = 'ticker-row';
+
+            // --- Build Best Ask (Sell) ---
+            const askContainer = document.createElement('div');
+            askContainer.className = 'sells-container';
+            if (data.bestAsk) {
+                askContainer.innerHTML = `
+                    <div class="order-box sell">
+                        <div class="price">${data.bestAsk.price.toFixed(2)}</div>
+                        <div class="amount">${data.bestAsk.amount}</div>
+                    </div>`;
+            }
+
+            // --- Build Ticker Info ---
+            const tickerInfo = document.createElement('div');
+            tickerInfo.className = 'ticker-info-middle';
+            tickerInfo.textContent = ticker;
+
+            // --- Build Best Bid (Buy) ---
+            const bidContainer = document.createElement('div');
+            bidContainer.className = 'buys-container';
+            if (data.bestBid) {
+                bidContainer.innerHTML = `
+                    <div class="order-box buy">
+                        <div class="price">${data.bestBid.price.toFixed(2)}</div>
+                        <div class="amount">${data.bestBid.amount}</div>
+                    </div>`;
+            }
+
+            // Append all parts to the row
+            tickerRow.appendChild(askContainer);
+            tickerRow.appendChild(tickerInfo);
+            tickerRow.appendChild(bidContainer);
+
+            // Add the completed row to the main container
+            container.appendChild(tickerRow);
+        }
+
+    } catch (error) {
+        console.error('Failed to update order book:', error);
+    }
+}
 
         // Select order type (Reverted to original)
         function selectOrderType(type) {
