@@ -539,7 +539,7 @@ function resolvedelta(delta) {
             const sell = sellOrders[j]
 
             if (buy.price >= sell.price) {
-                const quantity = Math.min(buy.amount, sell.amount)
+                const quantity = Number.parseFloat(Math.min(buy.amount, sell.amount)).toFixed(2)
                 trades.push({
                     "ticker": ticker,
                     "price": sell.price,
