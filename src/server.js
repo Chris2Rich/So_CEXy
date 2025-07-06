@@ -587,7 +587,7 @@ async function adddeltadb(delta, trades) {
     await client.query("BEGIN")
     try {
 
-        const deltaid = await client.query("INSERT INTO deltas DEFAULT VALUES RETURNING id")
+        const deltaid = (await client.query("INSERT INTO deltas DEFAULT VALUES RETURNING id")).rows[0].id
         for (const trade of trades) {
             const {
                 ticker,
