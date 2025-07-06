@@ -710,7 +710,7 @@ const server = https.createServer(sslOptions, async (req, res) => {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "X-XSS-Protection": "1 mode=block",
-        "Content-Security-Policy": "default-src 'self'",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "Permissions-Policy": "geolocation=(), microphone=(), camera=()"
     }
