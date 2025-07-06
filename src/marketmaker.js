@@ -50,13 +50,13 @@ async function addOrder(ticker, orderType, price, amount) {
     try {
         const response = await axios.post(`${API_BASE_URL}/add_order`, {
             userid: MARKET_MAKER_USER_ID,
-            price: price.toFixed(2), // Send price as a string with 2 decimal places
+            price: price.toFixed(5), // Send price as a string with 2 decimal places
             amount: Math.floor(amount),
             ticker: ticker,
             ordertype: orderType, // 1 for buy, -1 for sell
         }, { httpsAgent });
 
-        console.log(`Successfully placed ${orderType === 1 ? 'BUY' : 'SELL'} order for ${amount} ${ticker} @ ${price.toFixed(2)}`);
+        console.log(`Successfully placed ${orderType === 1 ? 'BUY' : 'SELL'} order for ${Math.floor(amount)} ${ticker} @ ${price.toFixed(5)}`);
         // A more advanced bot would store the returned 'deltaorderid' to cancel it later
     } catch (error) {
         // Log the error response from the server if available
@@ -79,8 +79,8 @@ async function runMarketMakingCycle() {
         config.midPrice *= (1 + priceChange);
 
         // 2. Calculate the bid (buy) and ask (sell) prices
-        const bidPrice = Number.parseFloat(config.midPrice - (config.spread / 2)).toFixed(5);
-        const askPrice = Number.parseFloat(config.midPrice + (config.spread / 2)).toFixed(5);
+        const bidPrice = config.midPrice - (config.spread / 2);
+        const askPrice = config.midPrice + (config.spread / 2);
 
         // 3. Determine a random amount for this cycle's orders
         const orderAmount = Number.parseFloat(randomInRange(config.minAmount, config.maxAmount)).toFixed(2);
