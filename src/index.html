@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoCexy | Demo</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/2.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -14,209 +14,251 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0d1421;
-            color: #d1d4dc;
-            height: 100vh;
-            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
         }
 
         .container {
-            display: grid;
-            grid-template-columns: 300px 1fr 300px;
-            grid-template-rows: 60px 1fr;
-            height: 100vh;
-            gap: 1px;
-            background: #1e222d;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
         .header {
-            grid-column: 1 / -1;
-            background: #1e222d;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            padding: 0 20px;
-            border-bottom: 1px solid #2a2e39;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         .logo {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            color: #2962ff;
-            margin-right: 30px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
-        .ticker-selector {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .ticker-dropdown {
-            background: #2a2e39;
-            color: #d1d4dc;
-            border: 1px solid #434651;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .user-info {
-            margin-left: auto;
+        .user-section {
             display: flex;
             align-items: center;
             gap: 15px;
         }
 
-        .login-btn {
-            background: #2962ff;
+        .user-info {
             color: white;
+            font-weight: 500;
+        }
+
+        .btn {
+            padding: 10px 20px;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            border-radius: 25px;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 14px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .login-btn:hover {
-            background: #1e4fd1;
+        .btn-primary {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
         }
 
-        .sidebar {
-            background: #1e222d;
-            border-right: 1px solid #2a2e39;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
         }
 
-        .sidebar-right {
-            background: #1e222d;
-            border-left: 1px solid #2a2e39;
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        .chart-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .ticker-select {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .ticker-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .chart-container {
-            background: #131722;
-            position: relative;
-            padding: 20px;
+            height: 500px;
+            margin-bottom: 20px;
         }
 
-        .chart-wrapper {
-            height: 100%;
-            position: relative;
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
-        .trading-panel {
-            padding: 20px;
-            border-bottom: 1px solid #2a2e39;
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
         }
 
-        .trading-panel h3 {
-            color: #d1d4dc;
-            margin-bottom: 15px;
-            font-size: 16px;
+        .panel h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 18px;
+            font-weight: 600;
         }
 
         .order-form {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 15px;
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 8px;
         }
 
         .form-group label {
-            font-size: 12px;
-            color: #868993;
-            text-transform: uppercase;
+            font-weight: 600;
+            color: #555;
         }
 
         .form-input {
-            background: #2a2e39;
-            border: 1px solid #434651;
-            color: #d1d4dc;
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 14px;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-size: 16px;
+            transition: all 0.3s ease;
         }
 
         .form-input:focus {
             outline: none;
-            border-color: #2962ff;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        .order-buttons {
+        .order-type-buttons {
             display: flex;
-            gap: 8px;
-            margin-top: 10px;
+            gap: 10px;
         }
 
-        .buy-btn, .sell-btn {
+        .order-type-btn {
             flex: 1;
             padding: 12px;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            background: white;
             cursor: pointer;
-            font-size: 14px;
+            transition: all 0.3s ease;
+            font-weight: 600;
         }
 
-        .buy-btn {
-            background: #089981;
+        .order-type-btn.active.buy {
+            background: #4caf50;
             color: white;
+            border-color: #4caf50;
         }
 
-        .buy-btn:hover {
-            background: #0a7a68;
-        }
-
-        .sell-btn {
-            background: #f23645;
+        .order-type-btn.active.sell {
+            background: #f44336;
             color: white;
+            border-color: #f44336;
         }
 
-        .sell-btn:hover {
-            background: #d1293a;
-        }
-
-        .orderbook {
-            flex: 1;
-            padding: 20px;
+        .delta-orders {
+            max-height: 300px;
             overflow-y: auto;
         }
 
-        .orderbook h3 {
-            margin-bottom: 15px;
-            color: #d1d4dc;
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
         }
 
-        .orderbook-table {
-            width: 100%;
-            font-size: 12px;
-            border-collapse: collapse;
+        .order-item:last-child {
+            border-bottom: none;
         }
 
-        .orderbook-table th,
-        .orderbook-table td {
+        .order-details {
+            flex: 1;
+        }
+
+        .order-ticker {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .order-info {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .order-type-badge {
             padding: 4px 8px;
-            text-align: right;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
         }
 
-        .orderbook-table th {
-            color: #868993;
-            border-bottom: 1px solid #2a2e39;
+        .order-type-badge.buy {
+            background: #e8f5e8;
+            color: #4caf50;
         }
 
-        .sell-order {
-            color: #f23645;
+        .order-type-badge.sell {
+            background: #fffeee;
+            color: #f44336;
         }
 
-        .buy-order {
-            color: #089981;
-        }
-
+        /* Modal Styles */
         .modal {
             display: none;
             position: fixed;
@@ -225,192 +267,227 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
         }
 
         .modal-content {
-            background: #1e222d;
-            margin: 15% auto;
-            padding: 30px;
-            border-radius: 8px;
-            width: 400px;
-            border: 1px solid #2a2e39;
+            background: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
         }
 
-        .modal h2 {
-            color: #d1d4dc;
-            margin-bottom: 20px;
+        .modal-header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
             text-align: center;
         }
 
+        .modal-body {
+            padding: 30px;
+        }
+
         .close {
-            color: #868993;
-            float: right;
+            position: absolute;
+            right: 20px;
+            top: 20px;
             font-size: 28px;
             font-weight: bold;
             cursor: pointer;
-            line-height: 1;
+            color: white;
+            opacity: 0.8;
         }
 
         .close:hover {
-            color: #d1d4dc;
+            opacity: 1;
         }
 
-        .status-message {
+        .modal-tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .modal-tab {
+            flex: 1;
             padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
+            border: none;
+            background: #f5f5f5;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .error-message {
+            color: #f44336;
             font-size: 14px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 10px;
         }
 
-        .success {
-            background: #089981;
-            color: white;
+        .success-message {
+            color: #4caf50;
+            font-size: 14px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 10px;
         }
 
-        .error {
-            background: #f23645;
-            color: white;
-        }
-
-        .trades-panel {
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .trades-table {
-            width: 100%;
-            font-size: 12px;
-            border-collapse: collapse;
-        }
-
-        .trades-table th,
-        .trades-table td {
-            padding: 4px 8px;
-            text-align: right;
-        }
-
-        .trades-table th {
-            color: #868993;
-            border-bottom: 1px solid #2a2e39;
-        }
-
-        .price-up {
-            color: #089981;
-        }
-
-        .price-down {
-            color: #f23645;
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .user-section {
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <div class="logo">SoCexy</div>
-            <div class="ticker-selector">
-                <select class="ticker-dropdown" id="tickerSelect">
-                    <option value="">Select Ticker</option>
-                </select>
+        <div class="header">
+            <div class="logo">SoCexy | Demo</div>
+            <div class="user-section">
+                <div class="user-info" id="userInfo">Not logged in</div>
+                <button class="btn btn-primary" id="loginBtn" onclick="openAuthModal()">Login / Register</button>
+                <button class="btn btn-secondary" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>
             </div>
-            <div class="user-info">
-                <span id="userDisplay">Not logged in</span>
-                <button class="login-btn" onclick="openLoginModal()">Login</button>
-            </div>
-        </header>
+        </div>
 
-        <div class="sidebar">
-            <div class="trading-panel">
-                <h3>Place Order</h3>
-                <div class="order-form">
-                    <div class="form-group">
-                        <label>Price</label>
-                        <input type="number" class="form-input" id="orderPrice" placeholder="0.00" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>Amount</label>
-                        <input type="number" class="form-input" id="orderAmount" placeholder="0.00" step="0.01">
-                    </div>
-                    <div class="order-buttons">
-                        <button class="buy-btn" onclick="placeOrder(1)">BUY</button>
-                        <button class="sell-btn" onclick="placeOrder(-1)">SELL</button>
+        <div class="main-content">
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h2>Market Data</h2>
+                    <select class="ticker-select" id="tickerSelect">
+                        <option value="">Select a ticker</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <h3>Place Order</h3>
+                    <div class="order-form">
+                        <div class="form-group">
+                            <label>Order Type</label>
+                            <div class="order-type-buttons">
+                                <button class="order-type-btn buy" onclick="selectOrderType(1)">Buy</button>
+                                <button class="order-type-btn sell" onclick="selectOrderType(-1)">Sell</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Ticker</label>
+                            <input type="text" class="form-input" id="orderTicker" placeholder="Enter ticker">
+                        </div>
+                        <div class="form-group">
+                            <label>Price</label>
+                            <input type="number" class="form-input" id="orderPrice" placeholder="Enter price" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Amount</label>
+                            <input type="number" class="form-input" id="orderAmount" placeholder="Enter amount" step="0.01">
+                        </div>
+                        <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
                     </div>
                 </div>
-                <div id="orderStatus"></div>
-            </div>
-        </div>
 
-        <div class="chart-container">
-            <div class="chart-wrapper">
-                <canvas id="tradingChart"></canvas>
-            </div>
-        </div>
-
-        <div class="sidebar-right">
-            <div class="orderbook">
-                <h3>Order Book</h3>
-                <table class="orderbook-table">
-                    <thead>
-                        <tr>
-                            <th>Price</th>
-                            <th>Amount</th>
-                            <th>Type</th>
-                        </tr>
-                    </thead>
-                    <tbody id="orderbookBody">
-                    </tbody>
-                </table>
-            </div>
-            <div class="trades-panel">
-                <h3>Recent Trades</h3>
-                <table class="trades-table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Price</th>
-                            <th>Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tradesBody">
-                    </tbody>
-                </table>
+                <div class="panel">
+                    <h3>Current Orders</h3>
+                    <div class="delta-orders" id="deltaOrders">
+                        <div style="text-align: center; color: #666;">No orders currently</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Login Modal -->
-    <div id="loginModal" class="modal">
+    <!-- Authentication Modal -->
+    <div id="authModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeLoginModal()">&times;</span>
-            <h2>Login</h2>
-            <div class="order-form">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" class="form-input" id="loginUsername" placeholder="Enter username">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" class="form-input" id="loginPassword" placeholder="Enter password">
-                </div>
-                <button class="login-btn" onclick="performLogin()" style="width: 100%; margin-top: 10px;">Login</button>
+            <div class="modal-header">
+                <span class="close" onclick="closeAuthModal()">&times;</span>
+                <h2>Authentication</h2>
             </div>
-            <div id="loginStatus"></div>
+            <div class="modal-body">
+                <div class="modal-tabs">
+                    <button class="modal-tab active" style="border-top-left-radius: 25px; border-bottom-left-radius: 25px;" onclick="switchTab('login')">Login</button>
+                    <button class="modal-tab" style="border-top-right-radius: 25px; border-bottom-right-radius: 25px;" onclick="switchTab('register')">Register</button>
+                </div>
+                
+                <div id="loginTab" class="tab-content active">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" class="form-input" id="loginUsername" placeholder="Enter username">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" class="form-input" id="loginPassword" placeholder="Enter password">
+                    </div>
+                    <button class="btn btn-primary" onclick="login()" style="width: 100%; margin-top: 15px;">Login</button>
+                </div>
+                
+                <div id="registerTab" class="tab-content">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" class="form-input" id="registerUsername" placeholder="Enter username">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" class="form-input" id="registerPassword" placeholder="Enter password">
+                    </div>
+                    <button class="btn btn-primary" onclick="register()" style="width: 100%; margin-top: 15px;">Register</button>
+                </div>
+                
+                <div id="authMessage"></div>
+            </div>
         </div>
     </div>
 
     <script>
         // Global variables
-        let chart;
-        let currentTicker = '';
-        let currentUser = null;
-        let historicalData = [];
-        let refreshInterval;
+        let currentUserId = null;
+        let currentOrderType = 1; // 1 for buy, -1 for sell
+        let priceChart = null;
+        let tickers = [];
+        let keyPair = null;
 
         // Initialize the application
         async function init() {
             await loadTickers();
+            await loadDeltaOrders();
             initChart();
-            startDataRefresh();
+            
+            // Auto-refresh delta orders every 5 seconds
+            setInterval(loadDeltaOrders, 5000);
         }
 
         // Load available tickers
@@ -418,33 +495,68 @@
             try {
                 const response = await fetch('/api/get_tickers');
                 const data = await response.json();
-                const tickerSelect = document.getElementById('tickerSelect');
+                tickers = data;
                 
-                if (data.status === 'OK' && data.tickers) {
-                    data.tickers.forEach(ticker => {
-                        const option = document.createElement('option');
-                        option.value = ticker;
-                        option.textContent = ticker;
-                        tickerSelect.appendChild(option);
-                    });
-                }
+                const select = document.getElementById('tickerSelect');
+                select.innerHTML = '<option value="">Select a ticker</option>';
+                
+                Object.keys(tickers).forEach(ticker => {
+                    const option = document.createElement('option');
+                    option.value = ticker;
+                    option.textContent = `${ticker} - ${tickers[ticker]}`;
+                    select.appendChild(option);
+                });
+                
+                select.addEventListener('change', function() {
+                    if (this.value) {
+                        loadHistoricalData(this.value);
+                        document.getElementById('orderTicker').value = this.value;
+                    }
+                });
             } catch (error) {
                 console.error('Error loading tickers:', error);
             }
         }
 
+        // Load historical data for chart
+        async function loadHistoricalData(ticker) {
+            try {
+                const response = await fetch('/api/get_historical', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ticker: ticker,
+                        limit: 100
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'OK') {
+                    updateChart(result.data, ticker);
+                }
+            } catch (error) {
+                console.error('Error loading historical data:', error);
+            }
+        }
+
         // Initialize chart
         function initChart() {
-            const ctx = document.getElementById('tradingChart').getContext('2d');
-            chart = new Chart(ctx, {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
+                    labels: [],
                     datasets: [{
                         label: 'Price',
                         data: [],
-                        borderColor: '#2962ff',
-                        backgroundColor: 'rgba(41, 98, 255, 0.1)',
-                        tension: 0.1
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
                     }]
                 },
                 options: {
@@ -452,282 +564,376 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'top'
                         }
                     },
                     scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'minute'
-                            },
+                        y: {
+                            beginAtZero: false,
                             grid: {
-                                color: '#2a2e39'
-                            },
-                            ticks: {
-                                color: '#868993'
+                                color: 'rgba(0, 0, 0, 0.1)'
                             }
                         },
-                        y: {
+                        x: {
                             grid: {
-                                color: '#2a2e39'
-                            },
-                            ticks: {
-                                color: '#868993'
+                                color: 'rgba(0, 0, 0, 0.1)'
                             }
                         }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
                     }
                 }
             });
         }
 
-        // Handle ticker selection
-        document.getElementById('tickerSelect').addEventListener('change', function() {
-            currentTicker = this.value;
-            if (currentTicker) {
-                loadHistoricalData();
-                loadCurrentOrders();
-            }
-        });
-
-        // Load historical data for chart
-        async function loadHistoricalData() {
-            try {
-                const response = await fetch('/api/get_historical', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        ticker: currentTicker,
-                        limit: 100
-                    })
-                });
-                
-                const data = await response.json();
-                if (data.status === 'OK' && data.data) {
-                    historicalData = data.data;
-                    updateChart();
-                    updateRecentTrades();
-                }
-            } catch (error) {
-                console.error('Error loading historical data:', error);
-            }
-        }
-
-        // Update chart with historical data
-        function updateChart() {
+        // Update chart with new data
+        function updateChart(data, ticker) {
             const chartData = [];
+            const labels = [];
             
-            historicalData.forEach(delta => {
+            // Process historical data to create OHLC-like visualization
+            data.forEach(delta => {
                 if (delta.trades && delta.trades.length > 0) {
-                    // Create candlestick data from trades
-                    const tickerTrades = delta.trades.filter(trade => trade.ticker === currentTicker);
+                    const tickerTrades = delta.trades.filter(trade => trade.ticker === ticker);
                     if (tickerTrades.length > 0) {
+                        // Calculate OHLC from trades in this delta
                         const prices = tickerTrades.map(trade => trade.price);
-                        const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+                        const volumes = tickerTrades.map(trade => trade.amount);
+                        
+                        const open = prices[0];
+                        const high = Math.max(...prices);
+                        const low = Math.min(...prices);
+                        const close = prices[prices.length - 1];
+                        const volume = volumes.reduce((a, b) => a + b, 0);
                         
                         chartData.push({
                             x: new Date(delta.delta_time),
-                            y: avgPrice
+                            y: close,
+                            open: open,
+                            high: high,
+                            low: low,
+                            volume: volume
                         });
+                        
+                        labels.push(new Date(delta.delta_time).toLocaleTimeString());
                     }
                 }
             });
-
-            chart.data.datasets[0].data = chartData;
-            chart.data.datasets[0].label = currentTicker;
-            chart.update();
+            
+            // Sort by time
+            chartData.sort((a, b) => a.x - b.x);
+            
+            priceChart.data.labels = chartData.map(d => d.x);
+            priceChart.data.datasets[0].data = chartData.map(d => d.y);
+            priceChart.data.datasets[0].label = `${ticker} Price`;
+            priceChart.update();
         }
 
-        // Load current orders (order book)
-        async function loadCurrentOrders() {
+        // Load current delta orders
+        async function loadDeltaOrders() {
             try {
                 const response = await fetch('/api/get_delta');
-                const data = await response.json();
+                const orders = await response.json();
                 
-                if (Array.isArray(data)) {
-                    const tickerOrders = data.filter(order => order.ticker === currentTicker);
-                    updateOrderBook(tickerOrders);
+                const container = document.getElementById('deltaOrders');
+                
+                if (orders.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #666;">No orders currently</div>';
+                    return;
                 }
+                
+                container.innerHTML = '';
+                
+                orders.forEach(order => {
+                    const orderDiv = document.createElement('div');
+                    orderDiv.className = 'order-item';
+                    
+                    const orderType = order.ordertype === 1 ? 'buy' : 'sell';
+                    const orderTypeText = order.ordertype === 1 ? 'BUY' : 'SELL';
+                    
+                    orderDiv.innerHTML = `
+                        <div class="order-details">
+                            <div class="order-ticker">${order.ticker}</div>
+                            <div class="order-info">$${order.price.toFixed(2)} × ${order.amount}</div>
+                        </div>
+                        <div class="order-type-badge ${orderType}">${orderTypeText}</div>
+                    `;
+                    
+                    container.appendChild(orderDiv);
+                });
             } catch (error) {
-                console.error('Error loading current orders:', error);
+                console.error('Error loading delta orders:', error);
             }
         }
 
-        // Update order book display
-        function updateOrderBook(orders) {
-            const tbody = document.getElementById('orderbookBody');
-            tbody.innerHTML = '';
-
-            // Sort orders by price
-            const buyOrders = orders.filter(o => o.ordertype === 1).sort((a, b) => b.price - a.price);
-            const sellOrders = orders.filter(o => o.ordertype === -1).sort((a, b) => a.price - b.price);
-
-            // Add sell orders (top of book)
-            sellOrders.forEach(order => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="sell-order">${order.price.toFixed(2)}</td>
-                    <td>${order.amount.toFixed(2)}</td>
-                    <td class="sell-order">SELL</td>
-                `;
-                tbody.appendChild(row);
-            });
-
-            // Add buy orders (bottom of book)
-            buyOrders.forEach(order => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="buy-order">${order.price.toFixed(2)}</td>
-                    <td>${order.amount.toFixed(2)}</td>
-                    <td class="buy-order">BUY</td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        // Update recent trades
-        function updateRecentTrades() {
-            const tbody = document.getElementById('tradesBody');
-            tbody.innerHTML = '';
-
-            const recentTrades = [];
-            historicalData.forEach(delta => {
-                if (delta.trades) {
-                    delta.trades.filter(trade => trade.ticker === currentTicker)
-                        .forEach(trade => recentTrades.push(trade));
-                }
-            });
-
-            recentTrades.sort((a, b) => new Date(b.trade_time) - new Date(a.trade_time))
-                .slice(0, 20)
-                .forEach(trade => {
-                    const row = document.createElement('tr');
-                    const time = new Date(trade.trade_time).toLocaleTimeString();
-                    row.innerHTML = `
-                        <td>${time}</td>
-                        <td class="price-up">${trade.price.toFixed(2)}</td>
-                        <td>${trade.amount.toFixed(2)}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
+        // Select order type
+        function selectOrderType(type) {
+            currentOrderType = type;
+            
+            const buttons = document.querySelectorAll('.order-type-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            const selectedBtn = type === 1 ? 
+                document.querySelector('.order-type-btn.buy') : 
+                document.querySelector('.order-type-btn.sell');
+            selectedBtn.classList.add('active');
         }
 
         // Place order
-        async function placeOrder(orderType) {
-            if (!currentUser) {
-                showStatus('orderStatus', 'Please login first', 'error');
+        async function placeOrder() {
+            if (!currentUserId) {
+                alert('Please login first');
                 return;
             }
-
-            if (!currentTicker) {
-                showStatus('orderStatus', 'Please select a ticker', 'error');
-                return;
-            }
-
+            
+            const ticker = document.getElementById('orderTicker').value.toUpperCase();
             const price = parseFloat(document.getElementById('orderPrice').value);
             const amount = parseFloat(document.getElementById('orderAmount').value);
-
-            if (!price || !amount || price <= 0 || amount <= 0) {
-                showStatus('orderStatus', 'Please enter valid price and amount', 'error');
+            
+            if (!ticker || !price || !amount) {
+                alert('Please fill in all fields');
                 return;
             }
-
+            
             try {
                 const response = await fetch('/api/add_order', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        userid: currentUser,
+                        userid: currentUserId,
+                        ticker: ticker,
                         price: price,
                         amount: amount,
-                        ticker: currentTicker,
-                        ordertype: orderType
+                        ordertype: currentOrderType
                     })
                 });
-
-                const data = await response.json();
-                if (data.status === 'OK') {
-                    showStatus('orderStatus', 'Order placed successfully', 'success');
+                
+                const result = await response.json();
+                
+                if (result.status === 'OK') {
+                    alert('Order placed successfully!');
+                    // Clear form
                     document.getElementById('orderPrice').value = '';
                     document.getElementById('orderAmount').value = '';
-                    loadCurrentOrders();
+                    // Reload delta orders
+                    loadDeltaOrders();
                 } else {
-                    showStatus('orderStatus', data.error || 'Failed to place order', 'error');
+                    alert('Error: ' + result.error);
                 }
             } catch (error) {
-                showStatus('orderStatus', 'Error placing order', 'error');
+                console.error('Error placing order:', error);
+                alert('Error placing order');
             }
         }
 
-        // Login functions
-        function openLoginModal() {
-            document.getElementById('loginModal').style.display = 'block';
+        // Authentication functions
+        function openAuthModal() {
+            document.getElementById('authModal').style.display = 'block';
         }
 
-        function closeLoginModal() {
-            document.getElementById('loginModal').style.display = 'none';
+        function closeAuthModal() {
+            document.getElementById('authModal').style.display = 'none';
+            document.getElementById('authMessage').innerHTML = '';
         }
 
-        async function performLogin() {
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.modal-tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+            
+            document.getElementById('authMessage').innerHTML = '';
+        }
 
+        // Generate RSA key pair
+        async function generateKeyPair() {
+            // For demo purposes, we'll use a simple implementation
+            // In production, use WebCrypto API
+            const keyPair = await window.crypto.subtle.generateKey(
+                {
+                    name: "RSA-OAEP",
+                    modulusLength: 2048,
+                    publicExponent: new Uint8Array([1, 0, 1]),
+                    hash: "SHA-256",
+                },
+                true,
+                ["encrypt", "decrypt"]
+            );
+            
+            return keyPair;
+        }
+
+        // Export public key to PEM format
+        async function exportPublicKey(key) {
+            const exported = await window.crypto.subtle.exportKey("spki", key);
+            const exportedAsString = String.fromCharCode.apply(null, new Uint8Array(exported));
+            const exportedAsBase64 = window.btoa(exportedAsString);
+            return `-----BEGIN PUBLIC KEY-----\n${exportedAsBase64}\n-----END PUBLIC KEY-----`;
+        }
+
+        // Encrypt challenge
+        async function encryptChallenge(challenge, publicKey) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(challenge);
+            const encrypted = await window.crypto.subtle.encrypt(
+                {
+                    name: "RSA-OAEP",
+                },
+                publicKey,
+                data
+            );
+            return window.btoa(String.fromCharCode.apply(null, new Uint8Array(encrypted)));
+        }
+
+        // Register user
+        async function register() {
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            
             if (!username || !password) {
-                showStatus('loginStatus', 'Please enter username and password', 'error');
+                showAuthMessage('Please fill in all fields', 'error');
                 return;
             }
-
+            
             try {
-                // In a real implementation, you would generate RSA keys and handle the challenge
-                // For now, we'll simulate the login process
-                showStatus('loginStatus', 'Login functionality requires RSA key implementation', 'error');
+                // Generate key pair
+                keyPair = await generateKeyPair();
+                const publicKeyPem = await exportPublicKey(keyPair.publicKey);
                 
-                // Simulate successful login for demo
-                // currentUser = 1; // This would be the actual user ID from the API
-                // document.getElementById('userDisplay').textContent = `Logged in as ${username}`;
-                // closeLoginModal();
+                // Get today's challenge
+                const today = new Date().toISOString().slice(0, 10);
+                const challenge = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(today));
+                const challengeHex = Array.from(new Uint8Array(challenge)).map(b => b.toString(16).padStart(2, '0')).join('');
                 
+                // Encrypt challenge
+                const encryptedChallenge = await encryptChallenge(challengeHex, keyPair.publicKey);
+                
+                const response = await fetch('/api/create_user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        pubkey: publicKeyPem,
+                        sent_challenge: encryptedChallenge
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'OK') {
+                    currentUserId = result.userid;
+                    updateUserInterface();
+                    closeAuthModal();
+                    showAuthMessage('Registration successful!', 'success');
+                } else {
+                    showAuthMessage('Registration failed: ' + result.error, 'error');
+                }
             } catch (error) {
-                showStatus('loginStatus', 'Login failed', 'error');
+                console.error('Registration error:', error);
+                showAuthMessage('Registration failed: ' + error.message, 'error');
             }
         }
 
-        // Utility functions
-        function showStatus(elementId, message, type) {
-            const element = document.getElementById(elementId);
-            element.innerHTML = `<div class="status-message ${type}">${message}</div>`;
-            setTimeout(() => {
-                element.innerHTML = '';
-            }, 5000);
-        }
-
-        // Start data refresh
-        function startDataRefresh() {
-            refreshInterval = setInterval(() => {
-                if (currentTicker) {
-                    loadCurrentOrders();
+        // Login user
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!username || !password) {
+                showAuthMessage('Please fill in all fields', 'error');
+                return;
+            }
+            
+            try {
+                // For demo purposes, we'll use stored keypair or generate new one
+                if (!keyPair) {
+                    keyPair = await generateKeyPair();
                 }
-            }, 2000);
+                
+                // Get today's challenge
+                const today = new Date().toISOString().slice(0, 10);
+                const challenge = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(today));
+                const challengeHex = Array.from(new Uint8Array(challenge)).map(b => b.toString(16).padStart(2, '0')).join('');
+                
+                // Encrypt challenge
+                const encryptedChallenge = await encryptChallenge(challengeHex, keyPair.publicKey);
+                
+                const response = await fetch('/api/login_user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        sent_challenge: encryptedChallenge
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'OK') {
+                    currentUserId = result.userid;
+                    updateUserInterface();
+                    closeAuthModal();
+                    showAuthMessage('Login successful!', 'success');
+                } else {
+                    showAuthMessage('Login failed: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAuthMessage('Login failed: ' + error.message, 'error');
+            }
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', init);
+        // Logout user
+        function logout() {
+            currentUserId = null;
+            keyPair = null;
+            updateUserInterface();
+        }
+
+        // Update user interface
+        function updateUserInterface() {
+            const userInfo = document.getElementById('userInfo');
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            
+            if (currentUserId) {
+                userInfo.textContent = `User ID: ${currentUserId}`;
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'block';
+            } else {
+                userInfo.textContent = 'Not logged in';
+                loginBtn.style.display = 'block';
+                logoutBtn.style.display = 'none';
+            }
+        }
+
+        // Show authentication message
+        function showAuthMessage(message, type) {
+            const authMessage = document.getElementById('authMessage');
+            authMessage.innerHTML = `<div class="${type}-message">${message}</div>`;
+        }
+
+        // Initialize order type selection
+        selectOrderType(1);
+
+        // Initialize the application when page loads
+        window.addEventListener('load', init);
 
         // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('loginModal');
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('authModal');
             if (event.target === modal) {
-                closeLoginModal();
+                closeAuthModal();
             }
-        }
+        });
     </script>
 </body>
-</html>
