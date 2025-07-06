@@ -3,13 +3,24 @@ import fs from "fs"
 import constants from "constants"
 import crypto from "crypto"
 import { Client } from "pg"
+import os from "os"
 
 const sim_options = {
     starting_balance: 1000
 }
 
-const PORT = process.env.PORT || 3000
-const HOST = process.env.HOST || "0.0.0.0"
+let HOST = ""
+const PORT = 3000
+
+const networkInterfaces = os.networkInterfaces()
+for (const interfaceName in networkInterfaces) {
+    for (const iface of networkInterfaces[interfaceName]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+            HOST = iface.address
+            break
+        }
+    }
+}
 
 const tickers = JSON.parse(fs.readFileSync("src/tickers.json"))
 const page = fs.readFileSync("src/index.html")
