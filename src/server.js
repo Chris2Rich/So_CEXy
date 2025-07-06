@@ -209,31 +209,30 @@ async function handleapi(req) {
 
         // Gets historical deltas excluding the current delta
         if (req.url.startsWith("/api/get_historical")) {
-            if (req.url.startsWith("/api/get_historical")) {
-                let data = await read_stream(req)
+            let data = await read_stream(req)
 
-                let limit = 100 // Default limit
-                let offset = 0 // Default offset
-                let ticker = null // Optional ticker filter
+            let limit = 100 // Default limit
+            let offset = 0 // Default offset
+            let ticker = null // Optional ticker filter
 
-                // Parse optional parameters
-                if (data.limit && Number.isInteger(Number(data.limit)) && Number(data.limit) > 0) {
-                    limit = Math.min(Number(data.limit), 1000) // Cap at 1000 for performance
+            // Parse optional parameters
+            if (data.limit && Number.isInteger(Number(data.limit)) && Number(data.limit) > 0) {
+                limit = Math.min(Number(data.limit), 1000) // Cap at 1000 for performance
+            }
+
+            if (data.offset && Number.isInteger(Number(data.offset)) && Number(data.offset) >= 0) {
+                offset = Number(data.offset)
+            }
+
+            if (data.ticker) {
+                ticker = data.ticker.toUpperCase()
+                if (!(ticker in tickers)) {
+                    return return_error("Ticker not recognized")
                 }
+            }
 
-                if (data.offset && Number.isInteger(Number(data.offset)) && Number(data.offset) >= 0) {
-                    offset = Number(data.offset)
-                }
-
-                if (data.ticker) {
-                    ticker = data.ticker.toUpperCase()
-                    if (!(ticker in tickers)) {
-                        return return_error("Ticker not recognized")
-                    }
-                }
-
-                try {
-                    let query = `
+            try {
+                let query = `
                         SELECT 
                             d.id as delta_id,
                             d.created_at as delta_time,
@@ -247,74 +246,73 @@ async function handleapi(req) {
                         LEFT JOIN trades t ON d.id = t.delta_id
                     `
 
-                    let queryParams = []
-                    let whereConditions = []
+                let queryParams = []
+                let whereConditions = []
 
-                    // Add ticker filter if specified
-                    if (ticker) {
-                        whereConditions.push(`t.ticker = $${queryParams.length + 1}`)
-                        queryParams.push(ticker)
-                    }
-
-                    // Add WHERE clause if there are conditions
-                    if (whereConditions.length > 0) {
-                        query += ` WHERE ${whereConditions.join(' AND ')}`
-                    }
-
-                    // Order by delta creation time (most recent first)
-                    query += ` ORDER BY d.created_at DESC, t.trade_time DESC`
-
-                    // Add pagination
-                    query += ` LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`
-                    queryParams.push(limit, offset)
-
-                    const result = await client.query(query, queryParams)
-
-                    // Group trades by delta
-                    const deltaMap = new Map()
-
-                    for (const row of result.rows) {
-                        const deltaId = row.delta_id
-
-                        if (!deltaMap.has(deltaId)) {
-                            deltaMap.set(deltaId, {
-                                delta_id: deltaId,
-                                delta_time: row.delta_time,
-                                trades: []
-                            })
-                        }
-
-                        // Only add trade if it exists (LEFT JOIN might return null trades)
-                        if (row.ticker) {
-                            deltaMap.get(deltaId).trades.push({
-                                ticker: row.ticker,
-                                price: parseFloat(row.price),
-                                amount: parseFloat(row.amount),
-                                trade_time: row.trade_time,
-                                buy_user_id: row.buy_user_id,
-                                sell_user_id: row.sell_user_id
-                            })
-                        }
-                    }
-
-                    // Convert map to array
-                    const historicalData = Array.from(deltaMap.values())
-
-                    return {
-                        "status": "OK",
-                        "time": new Date().toUTCString(),
-                        "data": historicalData,
-                        "pagination": {
-                            "limit": limit,
-                            "offset": offset,
-                            "returned": historicalData.length
-                        }
-                    }
-
-                } catch (dbError) {
-                    console.error("Database error fetching historical data:", dbError)
-                    return return_error("Internal server error")
+                // Add ticker filter if specified
+                if (ticker) {
+                    whereConditions.push(`t.ticker = $${queryParams.length + 1}`)
+                    queryParams.push(ticker)
                 }
+
+                // Add WHERE clause if there are conditions
+                if (whereConditions.length > 0) {
+                    query += ` WHERE ${whereConditions.join(' AND ')}`
+                }
+
+                // Order by delta creation time (most recent first)
+                query += ` ORDER BY d.created_at DESC, t.trade_time DESC`
+
+                // Add pagination
+                query += ` LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`
+                queryParams.push(limit, offset)
+
+                const result = await client.query(query, queryParams)
+
+                // Group trades by delta
+                const deltaMap = new Map()
+
+                for (const row of result.rows) {
+                    const deltaId = row.delta_id
+
+                    if (!deltaMap.has(deltaId)) {
+                        deltaMap.set(deltaId, {
+                            delta_id: deltaId,
+                            delta_time: row.delta_time,
+                            trades: []
+                        })
+                    }
+
+                    // Only add trade if it exists (LEFT JOIN might return null trades)
+                    if (row.ticker) {
+                        deltaMap.get(deltaId).trades.push({
+                            ticker: row.ticker,
+                            price: parseFloat(row.price),
+                            amount: parseFloat(row.amount),
+                            trade_time: row.trade_time,
+                            buy_user_id: row.buy_user_id,
+                            sell_user_id: row.sell_user_id
+                        })
+                    }
+                }
+
+                // Convert map to array
+                const historicalData = Array.from(deltaMap.values())
+
+                return {
+                    "status": "OK",
+                    "time": new Date().toUTCString(),
+                    "data": historicalData,
+                    "pagination": {
+                        "limit": limit,
+                        "offset": offset,
+                        "returned": historicalData.length
+                    }
+                }
+
+            } catch (dbError) {
+                console.error("Database error fetching historical data:", dbError)
+                return return_error("Internal server error")
             }
         }
 
@@ -358,7 +356,8 @@ async function handleapi(req) {
                 const challengeBuffer = Buffer.from(sent_challenge, "base64")
                 decrypted = crypto.publicDecrypt({
                     key: pubkey,
-                    padding: crypto.constants.RSA_PKCS1_PADDING
+                    padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+                    oaepHash: "sha256"
                 }, challengeBuffer)
             } catch (e) {
                 console.error("Decryption failed:", e)
@@ -417,7 +416,8 @@ async function handleapi(req) {
                 const challengeBuffer = Buffer.from(sent_challenge, "base64")
                 decrypted = crypto.publicDecrypt({
                     key: pubkey,
-                    padding: crypto.constants.RSA_PKCS1_PADDING
+                    padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+                    oaepHash: "sha256"
                 }, challengeBuffer)
             } catch (e) {
                 console.error("Decryption failed:", e)
