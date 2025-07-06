@@ -260,6 +260,103 @@
             color: #f44336;
         }
 
+        #tickers-list {
+    cursor: pointer;
+    list-style-type: none;
+    padding: 0;
+}
+
+#tickers-list li:hover {
+    background-color: #333;
+}
+
+#tickers-list li.selected {
+    background-color: #007bff;
+    font-weight: bold;
+}
+
+.orderbook-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 10px;
+}
+
+.ticker-row {
+    display: flex;
+    align-items: stretch;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid #2c2c2c;
+    min-height: 60px;
+}
+
+.sells-container {
+    display: flex;
+    flex-direction: row-reverse; /* Orders flow from center to left */
+    flex-grow: 1;
+}
+
+.buys-container {
+    display: flex;
+    flex-grow: 1;
+}
+
+.ticker-info-middle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2em;
+    padding: 0 20px;
+    color: #ffffff;
+    min-width: 100px;
+    text-align: center;
+    border-left: 1px solid #444;
+    border-right: 1px solid #444;
+}
+
+.order-box {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 0 4px;
+    min-width: 80px;
+}
+
+.order-box .price {
+    font-weight: bold;
+    font-size: 1em;
+}
+
+.order-box .amount {
+    font-size: 0.85em;
+    color: #c0c0c0;
+    margin-top: 4px;
+}
+
+.buy {
+    background-color: rgba(0, 150, 0, 0.2);
+    border: 1px solid #00b300;
+}
+
+.buy .price {
+    color: #33ff33;
+}
+
+.sell {
+    background-color: rgba(200, 0, 0, 0.2);
+    border: 1px solid #ff3333;
+}
+
+.sell .price {
+    color: #ff6666;
+}
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -428,7 +525,7 @@
 
                 <div class="panel">
                     <h3>Current Orders</h3>
-                    <div class="delta-orders" id="deltaOrders">
+                    <div class="delta-orders" id="orderbook-container">
                         <div style="text-align: center; color: #666;">No orders currently</div>
                     </div>
                 </div>
@@ -487,6 +584,7 @@
         let currentUserId = null;
         let currentOrderType = 1; // 1 for buy, -1 for sell
         let priceChart = null;
+        let selectedTicker = null;
         let tickers = [];
         // The new sessionPrivateKey replaces the old global keyPair
         let sessionPrivateKey = null;
@@ -702,40 +800,48 @@
         // Initialize the application
         async function init() {
             await loadTickers();
-            await loadDeltaOrders();
+            await updateOrderBook();
             initChart();
 
             // Auto-refresh delta orders every 5 seconds
-            setInterval(loadDeltaOrders, 5000);
+            setInterval(updateOrderBook, 5000);
         }
 
         // Load available tickers
         async function loadTickers() {
-            try {
-                const response = await fetch('/api/get_tickers');
-                const data = await response.json();
-                tickers = data;
+    try {
+        const response = await fetch('/api/get_tickers');
+        const tickers = await response.json();
+        const list = document.getElementById('tickers-list');
+        list.innerHTML = ''; // Clear existing list
 
-                const select = document.getElementById('tickerSelect');
-                select.innerHTML = '<option value="">Select a ticker</option>';
-
-                Object.keys(tickers).forEach(ticker => {
-                    const option = document.createElement('option');
-                    option.value = ticker;
-                    option.textContent = `${ticker} - ${tickers[ticker]}`;
-                    select.appendChild(option);
-                });
-
-                select.addEventListener('change', function () {
-                    if (this.value) {
-                        loadHistoricalData(this.value);
-                        document.getElementById('orderTicker').value = this.value;
-                    }
-                });
-            } catch (error) {
-                console.error('Error loading tickers:', error);
-            }
+        // Set the first ticker as the default selected one if none is selected yet
+        if (!selectedTicker && Object.keys(tickers).length > 0) {
+            selectedTicker = Object.keys(tickers)[0];
         }
+
+        for (const ticker in tickers) {
+            const listItem = document.createElement('li');
+            listItem.textContent = `${ticker} (${tickers[ticker]})`;
+            listItem.dataset.ticker = ticker;
+            if (ticker === selectedTicker) {
+                listItem.classList.add('selected');
+            }
+            // Add click event to select a ticker and re-render the order book
+            listItem.addEventListener('click', () => {
+                selectedTicker = ticker;
+                // Update selection highlight
+                document.querySelectorAll('#tickers-list li').forEach(li => li.classList.remove('selected'));
+                listItem.classList.add('selected');
+                // Re-render immediately on click to bring the selected ticker to the top
+                updateOrderBook();
+            });
+            list.appendChild(listItem);
+        }
+    } catch (error) {
+        console.error('Failed to load tickers:', error);
+    }
+}
 
         // Load historical data for chart
         async function loadHistoricalData(ticker) {
@@ -842,42 +948,98 @@
             priceChart.update();
         }
 
-        // Load current delta orders
-        async function loadDeltaOrders() {
-            try {
-                const response = await fetch('/api/get_delta');
-                const orders = await response.json();
+        async function updateOrderBook() {
+    try {
+        const response = await fetch('/api/get_delta');
+        const delta = await response.json();
 
-                const container = document.getElementById('deltaOrders');
-
-                if (orders.length === 0) {
-                    container.innerHTML = '<div style="text-align: center; color: #666;">No orders currently</div>';
-                    return;
-                }
-
-                container.innerHTML = '';
-
-                orders.forEach(order => {
-                    const orderDiv = document.createElement('div');
-                    orderDiv.className = 'order-item';
-
-                    const orderType = order.ordertype === 1 ? 'buy' : 'sell';
-                    const orderTypeText = order.ordertype === 1 ? 'BUY' : 'SELL';
-
-                    orderDiv.innerHTML = `
-                        <div class="order-details">
-                            <div class="order-ticker">${order.ticker}</div>
-                            <div class="order-info">$${Number.parseFloat(order.price).toFixed(2)} × ${order.amount}</div>
-                        </div>
-                        <div class="order-type-badge ${orderType}">${orderTypeText}</div>
-                    `;
-
-                    container.appendChild(orderDiv);
-                });
-            } catch (error) {
-                console.error('Error loading delta orders:', error);
+        // 1. Group orders by ticker and aggregate amounts for each price level
+        const orderBooks = {};
+        for (const order of delta) {
+            if (!orderBooks[order.ticker]) {
+                orderBooks[order.ticker] = { buys: {}, sells: {} };
             }
+
+            const side = order.ordertype === 1 ? 'buys' : 'sells';
+            const priceLevel = orderBooks[order.ticker][side];
+            
+            // Add the amount to the existing total at that price, or initialize it
+            priceLevel[order.price] = (priceLevel[order.price] || 0) + order.amount;
         }
+        
+        // 2. Convert the grouped data into sorted arrays for display
+        const processedTickers = {};
+        for (const ticker in orderBooks) {
+            processedTickers[ticker] = {
+                // Buys are sorted high-to-low (best price first)
+                buys: Object.entries(orderBooks[ticker].buys)
+                    .map(([price, amount]) => ({ price: parseFloat(price), amount }))
+                    .sort((a, b) => b.price - a.price),
+                // Sells are sorted low-to-high (best price first)
+                sells: Object.entries(orderBooks[ticker].sells)
+                    .map(([price, amount]) => ({ price: parseFloat(price), amount }))
+                    .sort((a, b) => a.price - b.price)
+            };
+        }
+
+        // 3. Get a sorted list of tickers to display, putting the selected one at the top
+        const sortedTickerNames = Object.keys(processedTickers).sort((a, b) => {
+            if (a === selectedTicker) return -1; // selectedTicker always comes first
+            if (b === selectedTicker) return 1;
+            return a.localeCompare(b); // Sort the rest alphabetically
+        });
+
+        // 4. Build and render the HTML
+        const container = document.getElementById('orderbook-container');
+        container.innerHTML = ''; // Clear the container of old content
+
+        for (const ticker of sortedTickerNames) {
+            const data = processedTickers[ticker];
+            
+            const tickerRow = document.createElement('div');
+            tickerRow.className = 'ticker-row';
+
+            // --- Build Sells (Asks) ---
+            const sellsContainer = document.createElement('div');
+            sellsContainer.className = 'sells-container';
+            // Reverse here to show best (lowest) price next to center
+            data.sells.reverse().forEach(({ price, amount }) => {
+                sellsContainer.innerHTML += `
+                    <div class="order-box sell">
+                        <div class="price">${price.toFixed(2)}</div>
+                        <div class="amount">${amount}</div>
+                    </div>`;
+            });
+
+            // --- Build Ticker Info ---
+            const tickerInfo = document.createElement('div');
+            tickerInfo.className = 'ticker-info-middle';
+            tickerInfo.textContent = ticker;
+            
+            // --- Build Buys (Bids) ---
+            const buysContainer = document.createElement('div');
+            buysContainer.className = 'buys-container';
+            data.buys.forEach(({ price, amount }) => {
+                buysContainer.innerHTML += `
+                    <div class="order-box buy">
+                        <div class="price">${price.toFixed(2)}</div>
+                        <div class="amount">${amount}</div>
+                    </div>`;
+            });
+            
+            // Append all parts to the row
+            tickerRow.appendChild(sellsContainer);
+            tickerRow.appendChild(tickerInfo);
+            tickerRow.appendChild(buysContainer);
+            
+            // Add the completed row to the main container
+            container.appendChild(tickerRow);
+        }
+
+    } catch (error) {
+        console.error('Failed to update order book:', error);
+    }
+}
 
         // Select order type (Reverted to original)
         function selectOrderType(type) {
