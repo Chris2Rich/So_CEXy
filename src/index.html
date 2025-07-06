@@ -867,7 +867,7 @@
                     orderDiv.innerHTML = `
                         <div class="order-details">
                             <div class="order-ticker">${order.ticker}</div>
-                            <div class="order-info">$${order.price.toFixed(2)} × ${order.amount}</div>
+                            <div class="order-info">$${Number.parseFloat(order.price).toFixed(2)} × ${order.amount}</div>
                         </div>
                         <div class="order-type-badge ${orderType}">${orderTypeText}</div>
                     `;
