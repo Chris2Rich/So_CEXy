@@ -85,7 +85,7 @@ async function runMarketMakingCycle() {
         // 3. Determine a random amount for this cycle's orders
         const orderAmount = Number.parseFloat(randomInRange(config.minAmount, config.maxAmount)).toFixed(2);
 
-        console.log(`Updating market for ${ticker}. New Mid-Price: ${config.midPrice.toFixed(2)}`);
+        console.log(`Updating market for ${ticker}. New Mid-Price: ${config.midPrice}`);
 
         // 4. Place the buy and sell orders
         // Note: These run in parallel
