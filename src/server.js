@@ -154,7 +154,7 @@ async function handleapi(req) {
 
         // Gets the current delta - should not expose deltaorderid or userid
         if (req.url.startsWith("/api/get_delta")) {
-            return Object.values(delta).map(order => ({"amount": order.amount, "ticker": order.ticker, "ordertype": order.ordertype}))
+            return Object.values(delta).map(order => ({"price": order.price,"amount": order.amount, "ticker": order.ticker, "ordertype": order.ordertype}))
         }
 
         // Recieves a username and pubkey (derived from hash of username + hash of password), checks for username uniqueness
