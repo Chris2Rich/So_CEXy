@@ -111,10 +111,10 @@ function generateMarketMakerConfig(userId, name) {
 // Define multiple market maker users with their *fixed* user IDs and generated market configs
 const marketMakers = [
     generateMarketMakerConfig("327af47f-413a-4f26-bda9-26516a517e4c", "AlphaBot"),
-    // generateMarketMakerConfig("ac3b6a1d-d4da-4906-92eb-3d5c79a9a19f", "BetaBot"),
-    // generateMarketMakerConfig("d3890c20-7d9d-47ab-99c1-c763871328db", "GammaBot"),
-    // generateMarketMakerConfig("6e6b1c53-70db-4e1d-998a-c8a5a844d584", "DeltaBot"),
-    // generateMarketMakerConfig("c1023295-4209-44e0-a8dc-3898c01a9a43", "KappaBot"),
+    generateMarketMakerConfig("ac3b6a1d-d4da-4906-92eb-3d5c79a9a19f", "BetaBot"),
+    generateMarketMakerConfig("d3890c20-7d9d-47ab-99c1-c763871328db", "GammaBot"),
+    generateMarketMakerConfig("6e6b1c53-70db-4e1d-998a-c8a5a844d584", "DeltaBot"),
+    generateMarketMakerConfig("c1023295-4209-44e0-a8dc-3898c01a9a43", "KappaBot"),
     generateMarketMakerConfig("e4849018-972d-45d7-aff9-688a8131f760", "VegaBot"),
 ];
 
