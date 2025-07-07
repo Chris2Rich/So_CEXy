@@ -6,7 +6,7 @@ import { Client } from "pg"
 import os from "os"
 
 const sim_options = {
-    starting_balance: 1000
+    starting_balance: 10000
 }
 
 let HOST = ""
