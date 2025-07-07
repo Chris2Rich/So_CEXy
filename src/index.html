@@ -1066,7 +1066,7 @@
                 const result = await response.json();
 
                 if (result.status === 'OK') {
-                    updateChart(result.data, ticker);
+                    updateChart(result.data, selectedTicker);
                 }
             } catch (error) {
                 console.error('Error loading historical data:', error);
