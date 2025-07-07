@@ -30,12 +30,17 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: 
+            background:
                 radial-gradient(circle at 20% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
                 radial-gradient(circle at 80% 80%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
                 radial-gradient(circle at 40% 60%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
+        }
+
+        #trueTitle {
+            margin: 0 auto;
+            width: fit-content;
         }
 
         .container {
@@ -53,7 +58,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 
+            box-shadow:
                 0 10px 40px rgba(0, 0, 0, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(148, 163, 184, 0.1);
@@ -62,7 +67,7 @@
         .logo {
             font-size: 32px;
             font-weight: 800;
-            background: linear-gradient(135deg, #06b6d4 0%, #22d3ee  50%, #67e8f9 100%);
+            background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 50%, #67e8f9 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -114,14 +119,14 @@
         .btn-primary {
             background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
             color: white;
-            box-shadow: 
+            box-shadow:
                 0 4px 20px rgba(6, 182, 212, 0.4),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 
+            box-shadow:
                 0 8px 30px rgba(6, 182, 212, 0.5),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
@@ -141,7 +146,7 @@
 
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 380px 1fr 300px;
             gap: 24px;
         }
 
@@ -150,7 +155,7 @@
             backdrop-filter: blur(20px);
             border-radius: 24px;
             padding: 32px;
-            box-shadow: 
+            box-shadow:
                 0 10px 40px rgba(0, 0, 0, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(148, 163, 184, 0.1);
@@ -206,7 +211,7 @@
             backdrop-filter: blur(20px);
             border-radius: 24px;
             padding: 28px;
-            box-shadow: 
+            box-shadow:
                 0 10px 40px rgba(0, 0, 0, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(148, 163, 184, 0.1);
@@ -286,7 +291,7 @@
             background: linear-gradient(135deg, #059669 0%, #047857 100%);
             color: white;
             border-color: #059669;
-            box-shadow: 
+            box-shadow:
                 0 4px 20px rgba(5, 150, 105, 0.4),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
@@ -295,7 +300,7 @@
             background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             border-color: #dc2626;
-            box-shadow: 
+            box-shadow:
                 0 4px 20px rgba(220, 38, 38, 0.4),
                 inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
@@ -367,7 +372,8 @@
 
         .orderbook-container {
             display: flex;
-            max-height: 400px;
+            max-height: 500px;
+            overflow-y: scroll;
             flex-direction: column;
             gap: 16px;
             padding-top: 10px;
@@ -375,7 +381,7 @@
 
         .ticker-row {
             display: flex;
-            align-items: stretch;
+            align-items: center;
             background: rgba(15, 23, 42, 0.8);
             border-radius: 16px;
             padding: 16px;
@@ -387,12 +393,15 @@
 
         .sells-container {
             display: flex;
-            flex-direction: row-reverse;
+            justify-content: flex-start;
+            align-items: center;
             flex-grow: 1;
         }
 
         .buys-container {
             display: flex;
+            justify-content: flex-end;
+            align-items: center;
             flex-grow: 1;
         }
 
@@ -402,9 +411,9 @@
             justify-content: center;
             font-weight: 700;
             font-size: 16px;
-            padding: 0 24px;
+            padding: 0 12px;
             color: #f1f5f9;
-            min-width: 120px;
+            min-width: 60px;
             text-align: center;
             border-left: 1px solid rgba(148, 163, 184, 0.2);
             border-right: 1px solid rgba(148, 163, 184, 0.2);
@@ -472,7 +481,7 @@
             border-radius: 24px;
             width: 90%;
             max-width: 420px;
-            box-shadow: 
+            box-shadow:
                 0 25px 80px rgba(0, 0, 0, 0.6),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(148, 163, 184, 0.2);
@@ -621,6 +630,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -645,7 +655,10 @@
             transform: scale(1.05);
         }
 
-        .btn, .order-type-btn, .form-input, .ticker-select {
+        .btn,
+        .order-type-btn,
+        .form-input,
+        .ticker-select {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
     </style>
@@ -664,9 +677,18 @@
         </div>
 
         <div class="main-content">
+            <div class="sidebar">
+                <div class="panel">
+                    <h3>Best Orders</h3>
+                    <div class="delta-orders" id="orderbook-container">
+                        <div style="text-align: center; color: #666;">No orders currently</div>
+                    </div>
+                </div>
+            </div>
             <div class="chart-section">
                 <div class="chart-header">
                     <h2>Market Data</h2>
+                    <h2 id="trueTitle"></h2>
                     <select class="ticker-select" id="tickerSelect">
                         <option value="">Select a ticker</option>
                     </select>
@@ -702,13 +724,6 @@
                                 step="0.01">
                         </div>
                         <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
-                    </div>
-                </div>
-
-                <div class="panel">
-                    <h3>Current Orders</h3>
-                    <div class="delta-orders" id="orderbook-container">
-                        <div style="text-align: center; color: #666;">No orders currently</div>
                     </div>
                 </div>
             </div>
@@ -768,6 +783,7 @@
         let priceChart = null;
         let selectedTicker = null;
         let tickers = [];
+        let fullnamemap = {};
         // The new sessionPrivateKey replaces the old global keyPair
         let sessionPrivateKey = null;
 
@@ -1004,6 +1020,7 @@
                 for (const ticker in tickers) {
                     const listItem = document.createElement("option");
                     listItem.textContent = `${ticker}`;
+                    fullnamemap[ticker] = `${ticker} - ${tickers[ticker]}`
                     listItem.dataset.ticker = ticker;
                     if (ticker === selectedTicker) {
                         listItem.classList.add('selected');
@@ -1022,6 +1039,7 @@
                 list.addEventListener('change', function () {
                     if (this.value) {
                         loadHistoricalData(this.value);
+                        document.getElementById("trueTitle").textContent = fullnamemap[this.value]
                         document.getElementById('orderTicker').value = this.value;
                     }
                 })
@@ -1064,8 +1082,8 @@
                     datasets: [{
                         label: 'Price',
                         data: [],
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.2)',
                         borderWidth: 2,
                         fill: true,
                         tension: 0.4
@@ -1078,7 +1096,7 @@
                         legend: {
                             display: true,
                             position: 'top'
-                        }
+                        },
                     },
                     scales: {
                         y: {
@@ -1092,7 +1110,6 @@
                             type: 'time', // Specify the axis type is 'time'
                             time: {
                                 unit: 'minute', // Set the display unit
-                                tooltipFormat: 'Price', // Format for tooltips e.g., "Jul 6, 2025, 7:12:00 PM"
                                 displayFormats: {
                                     minute: 'h:mm a' // Format for axis labels e.g., "7:12 PM"
                                 }
