@@ -1003,6 +1003,7 @@
 
             // Auto-refresh delta orders every 5 seconds
             setInterval(updateOrderBook, 1000);
+            setInterval(loadHistoricalData(selectedTicker), 5000);
         }
 
         // Load available tickers
