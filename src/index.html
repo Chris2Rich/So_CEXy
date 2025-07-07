@@ -1026,22 +1026,15 @@
                     if (ticker === selectedTicker) {
                         listItem.classList.add('selected');
                     }
-                    // Add click event to select a ticker and re-render the order book
-                    listItem.addEventListener('click', () => {
-                        selectedTicker = ticker;
-                        // Update selection highlight
-                        document.querySelectorAll('#tickers-list li').forEach(li => li.classList.remove('selected'));
-                        listItem.classList.add('selected');
-                        // Re-render immediately on click to bring the selected ticker to the top
-                        updateOrderBook();
-                    });
                     list.appendChild(listItem);
                 }
                 list.addEventListener('change', function () {
                     if (this.value) {
-                        loadHistoricalData();
                         document.getElementById("trueTitle").textContent = fullnamemap[this.value]
                         document.getElementById('orderTicker').value = this.value;
+                        selectedTicker = this.value;
+                        loadHistoricalData();
+                        updateOrderBook();
                     }
                 })
             } catch (error) {
