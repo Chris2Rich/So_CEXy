@@ -647,10 +647,12 @@
 
         .portfolio-summary {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             gap: 16px;
-            margin-top: -10px; /* Adjust spacing below the h3 */
-            margin-bottom: 16px;
+            margin-top: -10px;
+            /* Adjust spacing below the h3 */
+            margin-bottom: 8px;
+            justify-content: space-between;
         }
 
         .summary-item {
@@ -661,6 +663,7 @@
             padding: 16px;
             border-radius: 16px;
             border: 1px solid rgba(148, 163, 184, 0.1);
+            max-width: 300px;
         }
 
         .summary-label {
@@ -672,6 +675,7 @@
         .summary-value {
             font-weight: 700;
             font-size: 18px;
+            margin-left: 1rem;
             color: #f1f5f9;
             background: linear-gradient(135deg, #06b6d4, #67e8f9);
             -webkit-background-clip: text;
@@ -716,15 +720,18 @@
 
         /* Profit and Loss coloring */
         .profit {
-            color: #10b981 !important; /* Green */
+            color: #10b981 !important;
+            /* Green */
         }
 
         .loss {
-            color: #f87171 !important; /* Red */
+            color: #f87171 !important;
+            /* Red */
         }
 
         .neutral {
-            color: #94a3b8; /* Gray for no change */
+            color: #94a3b8;
+            /* Gray for no change */
         }
 
         .ticker-symbol {
@@ -783,6 +790,21 @@
                 <div class="chart-container">
                     <canvas id="priceChart"></canvas>
                 </div>
+                <div class="panel">
+                    <h3>Portfolio</h3>
+                    <div class="portfolio-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">Cash</span>
+                            <span class="summary-value" id="user-cash-balance">$0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Net Worth</span>
+                            <span class="summary-value" id="user-net-worth">$0.00</span>
+                        </div>
+                    </div>
+                    <button id="seeInventoryBtn" class="btn btn-primary" onclick="openPortfolioModal()"
+                        style="width: 100%; margin-top: 20px;">Show Portfolio</button>
+                </div>
             </div>
 
             <div class="sidebar">
@@ -812,20 +834,6 @@
                         </div>
                         <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
                     </div>
-                </div>         
-                <div class="panel">
-                    <h3>Portfolio</h3>
-                    <div class="portfolio-summary">
-                        <div class="summary-item">
-                            <span class="summary-label">Cash Balance</span>
-                            <span class="summary-value" id="user-cash-balance">$0.00</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">Net Worth</span>
-                            <span class="summary-value" id="user-net-worth">$0.00</span>
-                        </div>
-                    </div>
-                    <button id="seeInventoryBtn" class="btn btn-primary" onclick="openPortfolioModal()" style="width: 100%; margin-top: 20px;">Show Portfolio</button>
                 </div>
             </div>
         </div>
@@ -877,7 +885,7 @@
             </div>
         </div>
     </div>
-          
+
     <!-- Portfolio Modal -->
     <div id="portfolioModal" class="modal">
         <div class="modal-content" style="max-width: 800px;"> <!-- Wider for table -->
@@ -1501,7 +1509,7 @@
             }
         });
 
-                //=========================================================
+        //=========================================================
         // REFACTORED PORTFOLIO & NET WORTH LOGIC
         //=========================================================
 
@@ -1521,7 +1529,7 @@
                     [] // Empty delta orders
                 ]);
             }
-            
+
             const [portfolioRes, deltaRes] = await Promise.all([
                 fetch('/api/get_portfolio', {
                     method: 'POST',
@@ -1551,18 +1559,21 @@
             const marketPrices = {};
             // Get the most recent price for each ticker from the order book
             for (const order of deltaOrders) {
-                marketPrices[order.ticker] = parseFloat(order.price);
+                marketPrices[order.ticker] = NaN
+                if (order.ordertype == 1) {
+                    marketPrices[order.ticker] = Math.max(marketPrices[order.ticker], parseFloat(order.price));
+                }
             }
 
             let totalAssetsValue = 0;
-            
+
             const detailedPositions = portfolio.positions.map(pos => {
                 // Use the live market price, or fall back to the average purchase price if no live orders exist.
                 const currentPrice = marketPrices[pos.ticker] || pos.average_price;
                 const marketValue = pos.quantity * currentPrice;
                 const profitLoss = (currentPrice - pos.average_price) * pos.quantity;
                 const plClass = profitLoss > 0 ? 'profit' : (profitLoss < 0 ? 'loss' : 'neutral');
-                
+
                 totalAssetsValue += marketValue;
 
                 return {
@@ -1583,7 +1594,7 @@
                 positions: detailedPositions
             };
         }
-        
+
         /**
          * Updates the portfolio summary panel in the sidebar. Runs independently.
          */
@@ -1594,7 +1605,7 @@
                 document.getElementById('user-net-worth').textContent = '$0.00';
                 return;
             }
-            
+
             try {
                 const [portfolioData, marketData] = await fetchPortfolioAndMarketData();
                 const metrics = calculatePortfolioMetrics(portfolioData.portfolio, marketData);
@@ -1632,7 +1643,7 @@
                 portfolioModalBody.innerHTML = `<div class="error-message">Could not load inventory: ${error.message}</div>`;
             }
         }
-        
+
         /**
          * Renders the HTML table for the portfolio modal.
          * @param {Array} detailedPositions - The array of positions with calculated metrics.
@@ -1678,7 +1689,7 @@
         }
 
         closePortfolioBtn.onclick = closePortfolioModal;
-        window.addEventListener('click', function(event) {
+        window.addEventListener('click', function (event) {
             // ... (existing code for authModal) ...
             if (event.target === portfolioModal) {
                 closePortfolioModal();
