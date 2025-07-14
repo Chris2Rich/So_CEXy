@@ -19,188 +19,231 @@ for (const interfaceName in networkInterfaces) {
     }
 }
 
-const API_BASE_URL = `https://${HOST}:${PORT}/api`; // Make sure HOST and PORT match your server
+const API_BASE_URL = `https://${HOST}:${PORT}/api`;
 
-// Since the server uses a self-signed cert for local dev
 const httpsAgent = new https.Agent({
     rejectUnauthorized: false,
 });
 
-// Define core tickers available in the market
-const ALL_AVAILABLE_TICKERS = Object.keys(JSON.parse(fs.readFileSync("src/tickers.json"))); // Add all possible tickers here
+const ALL_AVAILABLE_TICKERS = Object.keys(JSON.parse(fs.readFileSync("src/tickers.json")));
 
+// --- PARAMETER GENERATION & HELPERS ---
 
+function randomFloat(min, max) { return Math.random() * (max - min) + min; }
+function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
-// --- PARAMETER GENERATION HELPERS ---
-
-// Generates a random float within a given range
-function randomFloat(min, max) {
-    return Math.random() * (max - min) + min;
-}
-
-// Generates a random integer within a given range
-function randomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-// Function to generate a random market configuration for a given ticker
-function generateRandomTickerConfig(ticker) {
-    let baseMidPrice;
-    let baseVolatility;
-    let baseSpread;
-    let baseMinAmount;
-    let baseMaxAmount;
-
-    // Set base ranges based on ticker, or a general range if new ticker
-    switch (ticker) {
-        case "TST":
-            baseMidPrice = randomFloat(152.5, 157.5);
-            baseVolatility = randomFloat(0.003, 0.008); // 0.3% to 0.8%
-            baseSpread = randomFloat(0.15, 0.30);
-            baseMinAmount = randomInt(5, 15);
-            baseMaxAmount = randomInt(20, 50);
-            break;
-        case "RPP2":
-            baseMidPrice = randomFloat(172, 178);
-            baseVolatility = randomFloat(0.004, 0.01); // 0.4% to 1%
-            baseSpread = randomFloat(0.20, 0.40);
-            baseMinAmount = randomInt(10, 20);
-            baseMaxAmount = randomInt(30, 60);
-            break;
-        case "BBB":
-            baseMidPrice = randomFloat(30, 32.5);
-            baseVolatility = randomFloat(0.02, 0.05); // 2% to 5% (higher volatility example)
-            baseSpread = randomFloat(0.10, 0.25);
-            baseMinAmount = randomInt(20, 50);
-            baseMaxAmount = randomInt(80, 150);
-            break;
-        default: // For any new or unspecified tickers
-            baseMidPrice = randomFloat(90, 110);
-            baseVolatility = randomFloat(0.001, 0.05); // 0.1% to 2%
-            baseSpread = randomFloat(0.05, 0.3);
-            baseMinAmount = randomInt(1, 10);
-            baseMaxAmount = randomInt(baseMinAmount + 10, baseMinAmount + 200);
-            break;
+/**
+ * Calculates the Simple Moving Average (SMA) for a given history and period.
+ * @param {number[]} history - Array of historical prices.
+ * @param {number} period - The number of data points to include in the average.
+ * @returns {number | null} The calculated SMA or null if history is insufficient.
+ */
+function calculateSMA(history, period) {
+    if (history.length < period) {
+        return null; // Not enough data
     }
-
-    return {
-        midPrice: parseFloat(baseMidPrice.toFixed(2)),
-        volatility: parseFloat(baseVolatility.toFixed(4)),
-        spread: parseFloat(baseSpread.toFixed(2)),
-        minAmount: baseMinAmount,
-        maxAmount: baseMaxAmount,
-    };
+    const relevantHistory = history.slice(-period);
+    const sum = relevantHistory.reduce((acc, val) => acc + val, 0);
+    return sum / period;
 }
 
-// Function to generate a random market maker configuration
-function generateMarketMakerConfig(userId, name) {
+
+// --- STRATEGY CONFIGURATION ---
+
+/**
+ * Generates a configuration object for a market maker bot with a specific strategy.
+ * @param {string} userId - The hardcoded UUID for the user.
+ * @param {string} name - The name of the bot.
+ * @param {'MEAN_REVERSION' | 'TREND_FOLLOWING'} strategy - The trading strategy to use.
+ * @returns {object} A complete configuration object for a market maker.
+ */
+function generateMarketMakerConfig(userId, name, strategy) {
     const marketConfig = {};
 
-    for (let i = 0; i < ALL_AVAILABLE_TICKERS.length; i++) {
-        const ticker = ALL_AVAILABLE_TICKERS[i]
-        marketConfig[ticker] = generateRandomTickerConfig(ticker);
+    for (const ticker of ALL_AVAILABLE_TICKERS) {
+        const baseMidPrice = randomFloat(90, 110);
+        const baseMinAmount = randomInt(5, 15);
+        const baseMaxAmount = randomInt(20, 50);
+
+        marketConfig[ticker] = {
+            midPrice: parseFloat(baseMidPrice.toFixed(2)),
+            volatility: randomFloat(0.005, 0.02), // General volatility for price movement
+            minAmount: baseMinAmount,
+            maxAmount: baseMaxAmount,
+            priceHistory: [], // State for storing historical prices
+        };
+
+        // Add strategy-specific parameters
+        if (strategy === 'MEAN_REVERSION') {
+            marketConfig[ticker].smaPeriod = randomInt(15, 25);
+            marketConfig[ticker].threshold = randomFloat(0.015, 0.03); // 1.5% to 3% deviation
+        } else if (strategy === 'TREND_FOLLOWING') {
+            marketConfig[ticker].shortSmaPeriod = randomInt(5, 8);
+            marketConfig[ticker].longSmaPeriod = randomInt(15, 25);
+        }
     }
 
-    return {
-        userId,
-        name,
-        marketConfig,
-    };
+    return { userId, name, strategy, marketConfig };
 }
 
-// Define multiple market maker users with their *fixed* user IDs and generated market configs
+// Define multiple market makers, each assigned to a specific strategy
 const marketMakers = [
-    generateMarketMakerConfig("327af47f-413a-4f26-bda9-26516a517e4c", "AlphaBot"),
-    generateMarketMakerConfig("ac3b6a1d-d4da-4906-92eb-3d5c79a9a19f", "BetaBot"),
-    // generateMarketMakerConfig("d3890c20-7d9d-47ab-99c1-c763871328db", "GammaBot"),
-    // generateMarketMakerConfig("6e6b1c53-70db-4e1d-998a-c8a5a844d584", "DeltaBot"),
-    // generateMarketMakerConfig("c1023295-4209-44e0-a8dc-3898c01a9a43", "KappaBot"),
-    generateMarketMakerConfig("e4849018-972d-45d7-aff9-688a8131f760", "VegaBot"),
+    generateMarketMakerConfig("327af47f-413a-4f26-bda9-26516a517e4c", "AlphaBot", 'MEAN_REVERSION'),
+    generateMarketMakerConfig("ac3b6a1d-d4da-4906-92eb-3d5c79a9a19f", "BetaBot", 'TREND_FOLLOWING'),
+    generateMarketMakerConfig("e4849018-972d-45d7-aff9-688a8131f760", "VegaBot", 'MEAN_REVERSION'),
+    generateMarketMakerConfig("d3890c20-7d9d-47ab-99c1-c763871328db", "GammaBot", "TREND_FOLLOWING"),
+    generateMarketMakerConfig("6e6b1c53-70db-4e1d-998a-c8a5a844d584", "DeltaBot", "MEAN_REVERSION"),
+    generateMarketMakerConfig("c1023295-4209-44e0-a8dc-3898c01a9a43", "KappaBot", "TREND_FOLLOWING"),
+
 ];
 
 
-// --- HELPER FUNCTIONS ---
+// --- API HELPER ---
 
-// Function to place an order
 async function addOrder(userId, ticker, orderType, price, amount) {
     try {
-        // Ensure amount is at least 1, as 0 amount orders are likely invalid
         const orderAmount = Math.max(1, Math.floor(amount));
-
-        const response = await axios.post(`${API_BASE_URL}/add_order`, {
-            userid: userId, // Use the passed userId
-            price: price.toFixed(5), // Send price as a string with 5 decimal places for precision
+        await axios.post(`${API_BASE_URL}/add_order`, {
+            userid: userId,
+            price: price.toFixed(5),
             amount: orderAmount,
             ticker: ticker,
-            ordertype: orderType, // 1 for buy, -1 for sell
+            ordertype: orderType,
         }, { httpsAgent });
 
-        console.log(`[User: ${userId.substring(0, 8)}... | ${ticker}] Placed ${orderType === 1 ? 'BUY' : 'SELL'} order: ${orderAmount} @ ${price.toFixed(5)}`);
-        // A more advanced bot would store the returned 'deltaorderid' to cancel it later
+        console.log(`      ✅ [${ticker}] Placed ${orderType === 1 ? 'BUY' : 'SELL'} order: ${orderAmount} @ ${price.toFixed(5)}`);
     } catch (error) {
         const errorMessage = error.response ? error.response.data.error : error.message;
-        console.error(`[User: ${userId.substring(0, 8)}... | ${ticker}] Error placing order: ${errorMessage}`);
+        console.error(`      ❌ [${ticker}] Error placing order: ${errorMessage}`);
     }
 }
 
 
-// --- MAIN MARKET MAKING LOGIC ---
+// --- STRATEGY EXECUTION LOGIC ---
 
-function cycle(marketMaker, ticker) {
+/**
+ * Executes a mean reversion strategy. Buys low, sells high relative to the SMA.
+ * @param {object} marketMaker - The bot executing the strategy.
+ * @param {string} ticker - The ticker to trade.
+ */
+function executeMeanReversion(marketMaker, ticker) {
     const config = marketMaker.marketConfig[ticker];
+    const { priceHistory, smaPeriod, threshold, minAmount, maxAmount } = config;
 
-    // 1. Update the mid-price using a random walk
-    // The priceChange now uses the *bot's specific* volatility for this ticker
-    const priceChange = randomFloat(-config.volatility, config.volatility);
-    config.midPrice *= (1 + priceChange);
-
-    // Ensure midPrice doesn't go below a reasonable minimum (e.g., 0.01)
-    // This prevents prices from spiraling to zero or negative
-    if (config.midPrice < 0.01) {
-        config.midPrice = 0.01;
+    const sma = calculateSMA(priceHistory, smaPeriod);
+    if (sma === null) {
+        console.log(`   [${ticker}] Waiting for more data to calculate SMA (${priceHistory.length}/${smaPeriod}).`);
+        return;
     }
 
-    // 2. Calculate the bid (buy) and ask (sell) prices based on the updated midPrice and the bot's spread
-    let bidPrice = config.midPrice - (config.spread / 2);
-    let askPrice = config.midPrice + (config.spread / 2);
+    const currentPrice = priceHistory[priceHistory.length - 1];
+    const lowerBound = sma * (1 - threshold);
+    const upperBound = sma * (1 + threshold);
 
-    // Ensure prices don't go negative or too low
-    bidPrice = Math.max(0.01, bidPrice);
-    askPrice = Math.max(0.01, askPrice);
+    console.log(`   [${ticker}] Price: ${currentPrice.toFixed(2)}, SMA(${smaPeriod}): ${sma.toFixed(2)}, Buy Below: ${lowerBound.toFixed(2)}, Sell Above: ${upperBound.toFixed(2)}`);
 
-    // 3. Determine a random amount for this cycle's orders based on the bot's min/max amount for this ticker
-    const orderAmount = randomFloat(config.minAmount, config.maxAmount);
+    const orderAmount = randomFloat(minAmount, maxAmount);
 
-    console.log(`  [${marketMaker.name} | ${ticker}] New Mid-Price: ${config.midPrice.toFixed(2)}, Bid: ${bidPrice.toFixed(2)}, Ask: ${askPrice.toFixed(2)}, Amount: ${orderAmount.toFixed(2)}`);
-
-    // 4. Place the buy and sell orders concurrently for the current market maker
-    addOrder(marketMaker.userId, ticker, 1, bidPrice, orderAmount);  // Place BUY order
-    addOrder(marketMaker.userId, ticker, -1, askPrice, orderAmount); // Place SELL order
-
+    if (currentPrice < lowerBound) {
+        console.log(`   [${ticker}] Signal: Price is BELOW lower bound. Executing BUY.`);
+        addOrder(marketMaker.userId, ticker, 1, currentPrice, orderAmount); // BUY
+    } else if (currentPrice > upperBound) {
+        console.log(`   [${ticker}] Signal: Price is ABOVE upper bound. Executing SELL.`);
+        addOrder(marketMaker.userId, ticker, -1, currentPrice, orderAmount); // SELL
+    } else {
+        console.log(`   [${ticker}] Signal: Price is within bounds. No trade.`);
+    }
 }
 
-async function runMarketMakingCycle() {
-    console.log(`\n--- Running new market making cycle at ${new Date().toLocaleString()} ---`);
+/**
+ * Executes a trend-following strategy using SMA crossovers.
+ * @param {object} marketMaker - The bot executing the strategy.
+ * @param {string} ticker - The ticker to trade.
+ */
+function executeTrendFollowing(marketMaker, ticker) {
+    const config = marketMaker.marketConfig[ticker];
+    const { priceHistory, shortSmaPeriod, longSmaPeriod, minAmount, maxAmount } = config;
+
+    // Need at least one more data point than the long period to check for a crossover
+    if (priceHistory.length <= longSmaPeriod) {
+        console.log(`   [${ticker}] Waiting for more data for SMA crossover (${priceHistory.length}/${longSmaPeriod + 1}).`);
+        return;
+    }
+    
+    // Current SMAs
+    const shortSma = calculateSMA(priceHistory, shortSmaPeriod);
+    const longSma = calculateSMA(priceHistory, longSmaPeriod);
+
+    // Previous SMAs
+    const prevHistory = priceHistory.slice(0, -1);
+    const prevShortSma = calculateSMA(prevHistory, shortSmaPeriod);
+    const prevLongSma = calculateSMA(prevHistory, longSmaPeriod);
+    
+    if (prevShortSma === null || prevLongSma === null) return; // Not enough data for previous tick
+
+    console.log(`   [${ticker}] ShortSMA: ${shortSma.toFixed(2)}, LongSMA: ${longSma.toFixed(2)}`);
+    const orderAmount = randomFloat(minAmount, maxAmount);
+
+    // Golden Cross: Short-term trend becomes stronger than long-term (Buy signal)
+    if (prevShortSma <= prevLongSma && shortSma > longSma) {
+        console.log(`   [${ticker}] Signal: Golden Cross detected. Executing BUY.`);
+        addOrder(marketMaker.userId, ticker, 1, priceHistory[priceHistory.length - 1], orderAmount);
+    }
+    // Death Cross: Short-term trend becomes weaker than long-term (Sell signal)
+    else if (prevShortSma >= prevLongSma && shortSma < longSma) {
+        console.log(`   [${ticker}] Signal: Death Cross detected. Executing SELL.`);
+        addOrder(marketMaker.userId, ticker, -1, priceHistory[priceHistory.length - 1], orderAmount);
+    } else {
+        console.log(`   [${ticker}] Signal: No crossover detected. No trade.`);
+    }
+}
+
+
+// --- MAIN BOT CYCLE ---
+
+function runMarketMakingCycle() {
+    console.log(`\n--- Running new market cycle at ${new Date().toLocaleString()} ---`);
 
     for (const marketMaker of marketMakers) {
-        console.log(`--- Processing orders for ${marketMaker.name} (User ID: ${marketMaker.userId.substring(0, 8)}...) ---`);
+        console.log(`\n--- [${marketMaker.name} | Strategy: ${marketMaker.strategy}] ---`);
 
         for (const ticker in marketMaker.marketConfig) {
-            setTimeout(() => cycle(marketMaker, ticker), randomFloat(0, 5000))
+            const config = marketMaker.marketConfig[ticker];
+
+            // 1. Simulate market price movement (random walk)
+            const priceChange = randomFloat(-config.volatility, config.volatility);
+            config.midPrice *= (1 + priceChange);
+            config.midPrice = Math.max(0.01, config.midPrice); // Prevent price from going to zero
+
+            // 2. Add the new price to the bot's history for its calculations
+            config.priceHistory.push(config.midPrice);
+
+            // Limit history size to avoid memory leaks
+            if (config.priceHistory.length > 100) {
+                config.priceHistory.shift();
+            }
+
+            console.log(`- [${marketMaker.name} | ${ticker}] Observed new market price: ${config.midPrice.toFixed(2)}`);
+
+            // 3. Dispatch to the correct strategy function
+            // Using a random delay to make the bot actions feel less synchronized
+            setTimeout(() => {
+                if (marketMaker.strategy === 'MEAN_REVERSION') {
+                    executeMeanReversion(marketMaker, ticker);
+                } else if (marketMaker.strategy === 'TREND_FOLLOWING') {
+                    executeTrendFollowing(marketMaker, ticker);
+                }
+            }, randomFloat(100, 1000));
         }
     }
 }
 
 // --- START THE BOT ---
 
-// Run the market making cycle every 5 seconds
-const CYCLE_INTERVAL_MS = 5000;
-console.log(`Starting pseudo-random market maker bot for ${marketMakers.length} users.`);
-marketMakers.forEach(mm => console.log(`- ${mm.name} (ID: ${mm.userId.substring(0, 8)}...)`));
-console.log(`Bot will update orders every ${CYCLE_INTERVAL_MS / 1000} seconds.`);
+const CYCLE_INTERVAL_MS = 8000; // Increased interval to allow for more price history to build up
+console.log(`Starting trading bot for ${marketMakers.length} users.`);
+marketMakers.forEach(mm => console.log(`- ${mm.name} (ID: ${mm.userId.substring(0, 8)}...) using ${mm.strategy} strategy.`));
+console.log(`Bot will run a cycle every ${CYCLE_INTERVAL_MS / 1000} seconds.`);
 
-// Run the initial cycle immediately
 runMarketMakingCycle();
-
-// Set up the interval for subsequent cycles
 setInterval(runMarketMakingCycle, CYCLE_INTERVAL_MS);
