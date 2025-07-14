@@ -1098,10 +1098,10 @@
             await updateOrderBook();
             initChart();
 
-            // Auto-refresh delta orders every 5 seconds
+            // Auto-refresh delta orders every 2.5 seconds
             setInterval(updateOrderBook, 1000);
-            setInterval(updatePortfolioSummary, 5000);
-            setInterval(loadHistoricalData, 5000);
+            setInterval(updatePortfolioSummary, 2500);
+            setInterval(loadHistoricalData, 2500);
         }
 
         // Load available tickers

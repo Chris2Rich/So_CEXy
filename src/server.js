@@ -664,7 +664,7 @@ setInterval(() => {
     } catch (insertError) {
         console.error("Database error inserting delta/trades:", insertError)
     }
-}, 5000)
+}, 2500)
 
 const sslOptions = {
     key: fs.readFileSync("src/.keys/key.pem"),

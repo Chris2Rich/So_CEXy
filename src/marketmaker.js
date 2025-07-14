@@ -272,7 +272,7 @@ function runMarketMakingCycle() {
 
 // --- START THE BOT ---
 
-const CYCLE_INTERVAL_MS = 8000; // Increased interval to allow for more price history to build up
+const CYCLE_INTERVAL_MS = 2500; // Increased interval to allow for more price history to build up
 console.log(`Starting trading bot for ${marketMakers.length} users.`);
 marketMakers.forEach(mm => console.log(`- ${mm.name} (ID: ${mm.userId.substring(0, 8)}...) using ${mm.strategy} strategy.`));
 console.log(`Bot will run a cycle every ${CYCLE_INTERVAL_MS / 1000} seconds.`);
