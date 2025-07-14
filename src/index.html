@@ -645,6 +645,93 @@
             animation: fadeIn 0.6s ease-out 0.1s both;
         }
 
+        .portfolio-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: -10px; /* Adjust spacing below the h3 */
+            margin-bottom: 16px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(51, 65, 85, 0.5);
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .summary-label {
+            font-weight: 600;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        .summary-value {
+            font-weight: 700;
+            font-size: 18px;
+            color: #f1f5f9;
+            background: linear-gradient(135deg, #06b6d4, #67e8f9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* --- Portfolio Modal & Table Styles --- */
+        .portfolio-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .portfolio-table th,
+        .portfolio-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .portfolio-table th {
+            font-size: 12px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .portfolio-table td {
+            font-size: 14px;
+            color: #e2e8f0;
+        }
+
+        .portfolio-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .portfolio-table tr:hover {
+            background-color: rgba(51, 65, 85, 0.3);
+        }
+
+        /* Profit and Loss coloring */
+        .profit {
+            color: #10b981 !important; /* Green */
+        }
+
+        .loss {
+            color: #f87171 !important; /* Red */
+        }
+
+        .neutral {
+            color: #94a3b8; /* Gray for no change */
+        }
+
+        .ticker-symbol {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
         /* Hover Effects */
         .ticker-row:hover {
             transform: translateY(-2px);
@@ -725,6 +812,20 @@
                         </div>
                         <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
                     </div>
+                </div>         
+                <div class="panel">
+                    <h3>Portfolio</h3>
+                    <div class="portfolio-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">Cash Balance</span>
+                            <span class="summary-value" id="user-cash-balance">$0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Net Worth</span>
+                            <span class="summary-value" id="user-net-worth">$0.00</span>
+                        </div>
+                    </div>
+                    <button id="seeInventoryBtn" class="btn btn-primary" onclick="openPortfolioModal()" style="width: 100%; margin-top: 20px;">Show Portfolio</button>
                 </div>
             </div>
         </div>
@@ -773,6 +874,20 @@
                 </div>
 
                 <div id="authMessage"></div>
+            </div>
+        </div>
+    </div>
+          
+    <!-- Portfolio Modal -->
+    <div id="portfolioModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;"> <!-- Wider for table -->
+            <div class="modal-header">
+                <span class="close" id="closePortfolioModal">×</span>
+                <h2>Portfolio</h2>
+            </div>
+            <div class="modal-body" id="portfolioModalBody">
+                <!-- Content will be dynamically inserted here -->
+                <p>Loading portfolio...</p>
             </div>
         </div>
     </div>
@@ -975,6 +1090,7 @@
                     currentUserId = result.userid;
                     updateUserInterface();
                     closeAuthModal();
+                    updatePortfolioSummary();
                 } else {
                     showAuthMessage('Login failed: ' + result.error, 'error');
                 }
@@ -989,6 +1105,7 @@
             currentUserId = null;
             sessionPrivateKey = null; // Clear the session key
             updateUserInterface();
+            updatePortfolioSummary();
         }
 
         //=========================================================
@@ -1003,6 +1120,7 @@
 
             // Auto-refresh delta orders every 5 seconds
             setInterval(updateOrderBook, 1000);
+            setInterval(updatePortfolioSummary, 5000);
         }
 
         // Load available tickers
@@ -1319,6 +1437,7 @@
                     // Reload delta orders
                     updateOrderBook();
                     loadHistoricalData(ticker)
+                    updatePortfolioSummary();
                 } else {
                     alert('Error: ' + result.error);
                 }
@@ -1385,6 +1504,190 @@
             const modal = document.getElementById('authModal');
             if (event.target === modal) {
                 closeAuthModal();
+            }
+        });
+
+                //=========================================================
+        // REFACTORED PORTFOLIO & NET WORTH LOGIC
+        //=========================================================
+
+        const portfolioModal = document.getElementById('portfolioModal');
+        const closePortfolioBtn = document.getElementById('closePortfolioModal');
+        const portfolioModalBody = document.getElementById('portfolioModalBody');
+
+        /**
+         * Fetches all necessary data from the server.
+         * @returns {Promise<[object, object]>} A promise that resolves to [portfolioData, marketData]
+         */
+        async function fetchPortfolioAndMarketData() {
+            if (!currentUserId) {
+                // Return a default structure if the user is not logged in.
+                return Promise.resolve([
+                    { status: 'OK', portfolio: { cash_balance: 0, positions: [] } },
+                    [] // Empty delta orders
+                ]);
+            }
+            
+            const [portfolioRes, deltaRes] = await Promise.all([
+                fetch('/api/get_portfolio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userid: currentUserId })
+                }),
+                fetch('/api/get_delta')
+            ]);
+
+            const portfolioData = await portfolioRes.json();
+            const marketData = await deltaRes.json();
+
+            if (portfolioData.status !== 'OK') {
+                throw new Error(portfolioData.error || "Failed to load portfolio.");
+            }
+
+            return [portfolioData, marketData];
+        }
+
+        /**
+         * Calculates portfolio metrics from raw data. This is a pure function.
+         * @param {object} portfolio - The user's portfolio object { cash_balance, positions }.
+         * @param {Array} deltaOrders - The current list of orders from the delta.
+         * @returns {object} An object with calculated metrics.
+         */
+        function calculatePortfolioMetrics(portfolio, deltaOrders) {
+            const marketPrices = {};
+            // Get the most recent price for each ticker from the order book
+            for (const order of deltaOrders) {
+                marketPrices[order.ticker] = parseFloat(order.price);
+            }
+
+            let totalAssetsValue = 0;
+            
+            const detailedPositions = portfolio.positions.map(pos => {
+                // Use the live market price, or fall back to the average purchase price if no live orders exist.
+                const currentPrice = marketPrices[pos.ticker] || pos.average_price;
+                const marketValue = pos.quantity * currentPrice;
+                const profitLoss = (currentPrice - pos.average_price) * pos.quantity;
+                const plClass = profitLoss > 0 ? 'profit' : (profitLoss < 0 ? 'loss' : 'neutral');
+                
+                totalAssetsValue += marketValue;
+
+                return {
+                    ...pos, // ticker, quantity, average_price
+                    currentPrice,
+                    marketValue,
+                    profitLoss,
+                    plClass
+                };
+            });
+
+            const netWorth = portfolio.cash_balance + totalAssetsValue;
+
+            return {
+                cash_balance: portfolio.cash_balance,
+                total_assets_value: totalAssetsValue,
+                net_worth: netWorth,
+                positions: detailedPositions
+            };
+        }
+        
+        /**
+         * Updates the portfolio summary panel in the sidebar. Runs independently.
+         */
+        async function updatePortfolioSummary() {
+            if (!currentUserId) {
+                // If logged out, reset the summary panel
+                document.getElementById('user-cash-balance').textContent = '$0.00';
+                document.getElementById('user-net-worth').textContent = '$0.00';
+                return;
+            }
+            
+            try {
+                const [portfolioData, marketData] = await fetchPortfolioAndMarketData();
+                const metrics = calculatePortfolioMetrics(portfolioData.portfolio, marketData);
+
+                document.getElementById('user-cash-balance').textContent = `$${metrics.cash_balance.toFixed(2)}`;
+                document.getElementById('user-net-worth').textContent = `$${metrics.net_worth.toFixed(2)}`;
+
+            } catch (error) {
+                console.error("Failed to update portfolio summary:", error);
+                // Optionally display an error state in the sidebar
+                document.getElementById('user-cash-balance').textContent = 'Error';
+                document.getElementById('user-net-worth').textContent = 'Error';
+            }
+        }
+
+        /**
+         * Opens the portfolio modal and renders the detailed inventory.
+         */
+        async function openPortfolioModal() {
+            if (!currentUserId) {
+                alert("Please log in to see your inventory.");
+                return;
+            }
+
+            portfolioModal.style.display = 'block';
+            portfolioModalBody.innerHTML = '<p>Loading inventory...</p>';
+
+            try {
+                const [portfolioData, marketData] = await fetchPortfolioAndMarketData();
+                const metrics = calculatePortfolioMetrics(portfolioData.portfolio, marketData);
+                renderPortfolioModalTable(metrics.positions);
+
+            } catch (error) {
+                console.error("Error opening portfolio modal:", error);
+                portfolioModalBody.innerHTML = `<div class="error-message">Could not load inventory: ${error.message}</div>`;
+            }
+        }
+        
+        /**
+         * Renders the HTML table for the portfolio modal.
+         * @param {Array} detailedPositions - The array of positions with calculated metrics.
+         */
+        function renderPortfolioModalTable(detailedPositions) {
+            let tableHtml = `
+                <table class="portfolio-table">
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Quantity</th>
+                            <th>Avg. Cost</th>
+                            <th>Current Price</th>
+                            <th>Market Value</th>
+                            <th>Total P/L</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            if (detailedPositions.length === 0) {
+                tableHtml += '<tr><td colspan="6" style="text-align: center; padding: 40px;">You do not own any assets.</td></tr>';
+            } else {
+                for (const pos of detailedPositions) {
+                    tableHtml += `
+                        <tr>
+                            <td><span class="ticker-symbol">${pos.ticker}</span></td>
+                            <td>${pos.quantity.toFixed(2)}</td>
+                            <td>$${pos.average_price.toFixed(2)}</td>
+                            <td>$${pos.currentPrice.toFixed(2)}</td>
+                            <td>$${pos.marketValue.toFixed(2)}</td>
+                            <td class="${pos.plClass}">$${pos.profitLoss.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }
+            }
+            tableHtml += `</tbody></table>`;
+            portfolioModalBody.innerHTML = tableHtml;
+        }
+
+        function closePortfolioModal() {
+            portfolioModal.style.display = 'none';
+        }
+
+        closePortfolioBtn.onclick = closePortfolioModal;
+        window.addEventListener('click', function(event) {
+            // ... (existing code for authModal) ...
+            if (event.target === portfolioModal) {
+                closePortfolioModal();
             }
         });
     </script>

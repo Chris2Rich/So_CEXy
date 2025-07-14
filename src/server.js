@@ -49,7 +49,7 @@ function read_stream(req) {
                 if (body) {
                     resolve(JSON.parse(body))
                 } else {
-                    resolve({}) // Resolve with an empty object if no body
+                    resolve({})
                 }
             } catch (e) {
                 reject(new Error("Invalid JSON in request body"))
@@ -70,7 +70,6 @@ async function handleapi(req) {
         if (req.url.startsWith("/api/get_tickers")) {
             return tickers
         }
-        // Adds orders to the delta
         if (req.url.startsWith("/api/add_order")) {
             let data = await read_stream(req)
 
@@ -131,18 +130,15 @@ async function handleapi(req) {
             }
 
             try {
-                // Get user's current balance
                 const userResult = await client.query("SELECT amount FROM users WHERE id = $1", [userid])
                 const currentBalance = parseFloat(userResult.rows[0].amount)
 
                 if (ordertype == 1) {
-                    // BUY order - check if user has enough cash
                     const requiredCash = amount * price
                     if (currentBalance < requiredCash) {
                         return return_error(`Insufficient cash. Required: ${requiredCash}, Available: ${currentBalance}`)
                     }
                 } else if (ordertype == -1) {
-                    // SELL order - check if user has enough of the asset
                     const positionResult = await client.query(
                         "SELECT quantity FROM positions WHERE user_id = $1 AND ticker = $2",
                         [userid, ticker]
@@ -168,14 +164,12 @@ async function handleapi(req) {
                 "time": new Date().toISOString()
             }
 
-            // use double hash of the data to make it infeasible to calculate the deltaorderid and cancel orders
             let deltaorderid = crypto.randomUUID().toString()
             delta[deltaorderid] = orderdata
 
             return { "status": "OK", "time": new Date().toUTCString(), "deltaorderid": deltaorderid, "orderdata": orderdata }
         }
 
-        // Removes orders from the delta
         if (req.url.startsWith("/api/cancel_order")) {
             let data = await read_stream(req)
 
@@ -203,22 +197,61 @@ async function handleapi(req) {
             return return_error("Delta OrderID does not exist")
         }
 
-        // Gets the current delta - should not expose deltaorderid or userid
+        if (req.url.startsWith("/api/get_portfolio")) {
+            const data = await read_stream(req)
+            const { userid } = data
+
+            if (!userid) {
+                return return_error("User ID is required.")
+            }
+
+            try {
+                const userResult = await client.query("SELECT amount FROM users WHERE id = $1", [userid])
+
+                if (userResult.rowCount === 0) {
+                    return return_error("User not found.")
+                }
+                const balance = parseFloat(userResult.rows[0].amount)
+
+                const positionsResult = await client.query(
+                    "SELECT ticker, quantity, average_price FROM positions WHERE user_id = $1 AND quantity > 0", 
+                    [userid]
+                )
+
+                const positions = positionsResult.rows.map(p => ({
+                    ticker: p.ticker,
+                    quantity: parseFloat(p.quantity),
+                    average_price: p.average_price ? parseFloat(p.average_price) : null
+                }))
+
+                return {
+                    "status": "OK",
+                    "time": new Date().toUTCString(),
+                    "portfolio": {
+                        "cash_balance": balance,
+                        "positions": positions
+                    }
+                }
+
+            } catch (dbError) {
+                console.error("Database error fetching portfolio:", dbError)
+                return return_error("Internal server error while fetching portfolio.")
+            }
+        }
+
         if (req.url.startsWith("/api/get_delta")) {
             return Object.values(delta).map(order => ({ "price": order.price, "amount": order.amount, "ticker": order.ticker, "ordertype": order.ordertype }))
         }
 
-        // Gets historical deltas excluding the current delta
         if (req.url.startsWith("/api/get_historical")) {
             let data = await read_stream(req)
 
-            let limit = 100 // Default limit
-            let offset = 0 // Default offset
-            let ticker = null // Optional ticker filter
+            let limit = 100
+            let offset = 0
+            let ticker = null
 
-            // Parse optional parameters
             if (data.limit && Number.isInteger(Number(data.limit)) && Number(data.limit) > 0) {
-                limit = Math.min(Number(data.limit), 1000) // Cap at 1000 for performance
+                limit = Math.min(Number(data.limit), 1000)
             }
 
             if (data.offset && Number.isInteger(Number(data.offset)) && Number(data.offset) >= 0) {
@@ -250,27 +283,22 @@ async function handleapi(req) {
                 let queryParams = []
                 let whereConditions = []
 
-                // Add ticker filter if specified
                 if (ticker) {
                     whereConditions.push(`t.ticker = $${queryParams.length + 1}`)
                     queryParams.push(ticker)
                 }
 
-                // Add WHERE clause if there are conditions
                 if (whereConditions.length > 0) {
                     query += ` WHERE ${whereConditions.join(' AND ')}`
                 }
 
-                // Order by delta creation time (most recent first)
                 query += ` ORDER BY d.created_at DESC, t.trade_time DESC`
 
-                // Add pagination
                 query += ` LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`
                 queryParams.push(limit, offset)
 
                 const result = await client.query(query, queryParams)
 
-                // Group trades by delta
                 const deltaMap = new Map()
 
                 for (const row of result.rows) {
@@ -284,7 +312,6 @@ async function handleapi(req) {
                         })
                     }
 
-                    // Only add trade if it exists (LEFT JOIN might return null trades)
                     if (row.ticker) {
                         deltaMap.get(deltaId).trades.push({
                             ticker: row.ticker,
@@ -297,7 +324,6 @@ async function handleapi(req) {
                     }
                 }
 
-                // Convert map to array
                 const historicalData = Array.from(deltaMap.values())
 
                 return {
@@ -321,12 +347,10 @@ async function handleapi(req) {
             const data = await read_stream(req);
             const { username, pubkey, encrypted_private_key, salt, iv } = data;
 
-            // Basic validation
             if (!username || !pubkey || !encrypted_private_key || !salt || !iv) {
                 return return_error("A required field is missing.");
             }
 
-            // Check if username is already taken
             try {
                 const userCheck = await client.query("SELECT 1 FROM users WHERE username = $1", [username]);
                 if (userCheck.rowCount > 0) {
@@ -337,7 +361,6 @@ async function handleapi(req) {
                 return return_error("Internal server error");
             }
 
-            // Insert new user with their cryptographic materials
             try {
                 const insertUserResult = await client.query(
                     `INSERT INTO users (username, pubkey, amount, encrypted_private_key, salt, iv) 
@@ -353,7 +376,6 @@ async function handleapi(req) {
             }
         }
 
-        // --- NEW LOGIN FLOW (STEP 1): Get user data and a challenge ---
         if (req.url.startsWith("/api/get_login_challenge")) {
             const data = await read_stream(req);
             const { username } = data;
@@ -367,19 +389,17 @@ async function handleapi(req) {
                 );
 
                 if (result.rowCount === 0) {
-                    return return_error("Invalid username or password."); // Generic error
+                    return return_error("Invalid username or password.");
                 }
 
-                // Generate a cryptographically secure, single-use nonce (challenge)
                 const nonce = crypto.randomBytes(32).toString('hex');
 
-                // Store the nonce with a 2-minute expiry
                 nonceStore.set(username, { nonce, expiry: Date.now() + 2 * 60 * 1000 });
 
                 return {
                     "status": "OK",
                     ...result.rows[0],
-                    nonce: nonce // Send challenge to the client
+                    nonce: nonce
                 };
             } catch (dbError) {
                 console.error("Database error fetching login challenge data:", dbError);
@@ -387,7 +407,6 @@ async function handleapi(req) {
             }
         }
 
-        // --- NEW LOGIN FLOW (STEP 2): Verify the signed challenge ---
         if (req.url.startsWith("/api/verify_login_signature")) {
             const data = await read_stream(req);
             const { username, nonce, signature } = data;
@@ -396,14 +415,12 @@ async function handleapi(req) {
                 return return_error("Malformed verification request.");
             }
 
-            // 1. Verify the nonce is valid and expected
             const storedNonce = nonceStore.get(username);
             if (!storedNonce || storedNonce.nonce !== nonce || Date.now() > storedNonce.expiry) {
                 return return_error("Invalid or expired login challenge. Please try again.");
             }
-            nonceStore.delete(username); // Invalidate nonce immediately
+            nonceStore.delete(username);
 
-            // 2. Get user's public key to verify the signature
             try {
                 const userResult = await client.query("SELECT id, pubkey FROM users WHERE username = $1", [username]);
                 if (userResult.rowCount === 0) {
@@ -411,16 +428,15 @@ async function handleapi(req) {
                 }
                 const { id, pubkey } = userResult.rows[0];
 
-                // 3. Perform the cryptographic verification
                 const isSignatureValid = crypto.verify(
-                    "sha256", // algorithm
-                    Buffer.from(nonce, 'utf-8'), // data that was signed
+                    "sha256",
+                    Buffer.from(nonce, 'utf-8'),
                     {
                         key: pubkey,
                         padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                         saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
                     },
-                    Buffer.from(signature, 'base64') // the signature
+                    Buffer.from(signature, 'base64')
                 );
 
                 if (isSignatureValid) {
@@ -444,7 +460,6 @@ async function handleapi(req) {
 function resolvedelta(delta) {
     const trades = []
 
-    // Group orders by ticker
     const tickerGroups = {}
     for (const [id, order] of Object.entries(delta)) {
         if (!order.ticker) continue
@@ -459,14 +474,12 @@ function resolvedelta(delta) {
         const buyOrders = []
         const sellOrders = []
 
-        // Track users who have already placed orders for this ticker
         const userOrderTracker = new Map()
 
         for (const [id, order] of Object.entries(group)) {
-            const userKey = `${order.userid}-${order.ordertype}` // Track by user and order type
+            const userKey = `${order.userid}-${order.ordertype}`
 
             if (!userOrderTracker.has(userKey)) {
-                // First order from this user for this order type
                 userOrderTracker.set(userKey, {
                     id: id,
                     time: new Date(order.time)
@@ -484,15 +497,12 @@ function resolvedelta(delta) {
                     })
                 }
             } else {
-                // Check if this order is earlier than the tracked one
                 const currentOrderTime = new Date(order.time)
                 const trackedOrder = userOrderTracker.get(userKey)
 
                 if (currentOrderTime > trackedOrder.time) {
-                    // This order is earlier, replace the tracked one
                     const oldOrderId = trackedOrder.id
 
-                    // Remove the old order from the appropriate array
                     if (order.ordertype == 1) {
                         const oldIndex = buyOrders.findIndex(o => o.id == oldOrderId)
                         if (oldIndex !== -1) {
@@ -513,26 +523,21 @@ function resolvedelta(delta) {
                         })
                     }
 
-                    // Update tracker
                     userOrderTracker.set(userKey, {
                         id: id,
                         time: currentOrderTime
                     })
 
-                    // Remove the old order from delta
                     delete delta[oldOrderId]
                 } else {
-                    // This order is later, remove it from delta
                     delete delta[id]
                 }
             }
         }
 
-        // Sort orders for matching
         buyOrders.sort((a, b) => b.price - a.price || new Date(a.time) - new Date(b.time))
         sellOrders.sort((a, b) => a.price - b.price || new Date(a.time) - new Date(b.time))
 
-        // Match orders
         let i = 0, j = 0
         while (i < buyOrders.length && j < sellOrders.length) {
             const buy = buyOrders[i]
@@ -565,7 +570,6 @@ function resolvedelta(delta) {
             }
         }
 
-        // Remove fully matched orders from delta
         for (let k = 0; k < i; k++) {
             delete delta[buyOrders[k].id]
         }
@@ -615,7 +619,6 @@ async function adddeltadb(delta, trades) {
                     updated_at = CURRENT_TIMESTAMP
             `, [buy.userid, ticker, amount, price])
 
-            // Update positions for seller (decrease position)
             await client.query(`
                 INSERT INTO positions (user_id, ticker, quantity, average_price)
                 VALUES ($1, $2, $3, $4)
@@ -682,22 +685,18 @@ const sslOptions = {
     ].join(":"),
     honorCipherOrder: true,
 
-    // Enable OCSP Stapling
     requestCert: true,
     rejectUnauthorized: false,
 
-    // Enable session resumption
-    sessionTimeout: 300, // 5 minutes
+    sessionTimeout: 300,
     sessionIdContext: "SoCexyyy",
 
-    // Enable HSTS preload
     hsts: {
-        maxAge: 63072000, // 2 years in seconds
+        maxAge: 63072000,
         includeSubDomains: true,
         preload: true
     },
 
-    // Enable secure renegotiation
     secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT | constants.SSL_OP_NO_SSLv3 | constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1 | constants.SSL_OP_CIPHER_SERVER_PREFERENCE
 }
 
@@ -726,6 +725,6 @@ server.on("error", (error) => {
 })
 
 server.listen(PORT, HOST, () => {
-    console.log(`Server running at https://${HOST}:${PORT}`)
+    console.log(`Server running at https:
     console.log("Press Ctrl+C to stop the server")
 })
