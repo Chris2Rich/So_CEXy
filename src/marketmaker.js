@@ -54,7 +54,7 @@ function calculateSMA(history, period) {
  * Generates a configuration object for a market maker bot with a specific strategy.
  * @param {string} userId - The hardcoded UUID for the user.
  * @param {string} name - The name of the bot.
- * @param {'MEAN_REVERSION' | 'TREND_FOLLOWING'} strategy - The trading strategy to use.
+ * @param {'MEAN_REVERSION' | 'TREND_FOLLOWING' | 'RANDOM_TRADER'} strategy - The trading strategy to use.
  * @returns {object} A complete configuration object for a market maker.
  */
 function generateMarketMakerConfig(userId, name, strategy) {
@@ -80,6 +80,8 @@ function generateMarketMakerConfig(userId, name, strategy) {
         } else if (strategy === 'TREND_FOLLOWING') {
             marketConfig[ticker].shortSmaPeriod = randomInt(5, 8);
             marketConfig[ticker].longSmaPeriod = randomInt(15, 25);
+        } else if (strategy === 'RANDOM_TRADER') {
+            marketConfig[ticker].tradeProbability = randomFloat(0.25, 0.5); // Trades on 25-50% of cycles
         }
     }
 
@@ -93,7 +95,7 @@ const marketMakers = [
     generateMarketMakerConfig("e4849018-972d-45d7-aff9-688a8131f760", "VegaBot", 'MEAN_REVERSION'),
     generateMarketMakerConfig("d3890c20-7d9d-47ab-99c1-c763871328db", "GammaBot", "TREND_FOLLOWING"),
     generateMarketMakerConfig("6e6b1c53-70db-4e1d-998a-c8a5a844d584", "DeltaBot", "MEAN_REVERSION"),
-    generateMarketMakerConfig("c1023295-4209-44e0-a8dc-3898c01a9a43", "KappaBot", "TREND_FOLLOWING"),
+    generateMarketMakerConfig("c1023295-4209-44e0-a8dc-3898c01a9a43", "KappaBot", "RANDOM_TRADER"),
 
 ];
 
@@ -198,6 +200,30 @@ function executeTrendFollowing(marketMaker, ticker) {
     }
 }
 
+/**
+ * Executes a trend-following strategy using SMA crossovers.
+ * @param {object} marketMaker - The bot executing the strategy.
+ * @param {string} ticker - The ticker to trade.
+ */
+function executeRandomTrader(marketMaker, ticker) {
+    const config = marketMaker.marketConfig[ticker];
+    const { tradeProbability, minAmount, maxAmount, priceHistory } = config;
+
+    console.log(`   [${ticker}] Trade probability is ${ (tradeProbability * 100).toFixed(0) }%.`);
+
+    if (Math.random() < tradeProbability) {
+        const orderType = Math.random() < 0.5 ? 1 : -1; // 1 for BUY, -1 for SELL
+        const orderAmount = randomFloat(minAmount, maxAmount);
+        const currentPrice = priceHistory[priceHistory.length - 1];
+
+        console.log(`   [${ticker}] Signal: Random chance met. Executing a random ${orderType === 1 ? 'BUY' : 'SELL'}.`);
+        addOrder(marketMaker.userId, ticker, orderType, currentPrice, orderAmount);
+
+    } else {
+        console.log(`   [${ticker}] Signal: Random chance not met. No trade.`);
+    }
+}
+
 
 // --- MAIN BOT CYCLE ---
 
@@ -232,6 +258,8 @@ function runMarketMakingCycle() {
                     executeMeanReversion(marketMaker, ticker);
                 } else if (marketMaker.strategy === 'TREND_FOLLOWING') {
                     executeTrendFollowing(marketMaker, ticker);
+                } else if (marketMaker.strategy === 'RANDOM_TRADER') {
+                    executeRandomTrader(marketMaker, ticker);
                 }
             }, randomFloat(100, 1000));
         }
