@@ -214,7 +214,7 @@ async function handleapi(req) {
                 const balance = parseFloat(userResult.rows[0].amount)
 
                 const positionsResult = await client.query(
-                    "SELECT ticker, quantity, average_price FROM positions WHERE user_id = $1 AND quantity > 0", 
+                    "SELECT ticker, quantity, average_price FROM positions WHERE user_id = $1 AND quantity > 0",
                     [userid]
                 )
 
@@ -685,21 +685,6 @@ const sslOptions = {
     // ].join(":"),
     // honorCipherOrder: true,
 
-<<<<<<< HEAD
-    requestCert: true,
-    rejectUnauthorized: false,
-
-    sessionTimeout: 300,
-    sessionIdContext: "SoCexyyy",
-
-    hsts: {
-        maxAge: 63072000,
-        includeSubDomains: true,
-        preload: true
-    },
-
-    secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT | constants.SSL_OP_NO_SSLv3 | constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1 | constants.SSL_OP_CIPHER_SERVER_PREFERENCE
-=======
     // // Enable OCSP Stapling
     // requestCert: true,
     // rejectUnauthorized: false,
@@ -717,7 +702,6 @@ const sslOptions = {
 
     // // Enable secure renegotiation
     // secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT | constants.SSL_OP_NO_SSLv3 | constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1 | constants.SSL_OP_CIPHER_SERVER_PREFERENCE
->>>>>>> 365ef905252251617c2f7e88373fcb3f6a4938dc
 }
 
 const server = https.createServer(sslOptions, async (req, res) => {
@@ -745,6 +729,6 @@ server.on("error", (error) => {
 })
 
 server.listen(PORT, HOST, () => {
-    console.log(`Server running at https:
+    console.log(`Server running at https://${HOST}:${PORT}`)
     console.log("Press Ctrl+C to stop the server")
 })
