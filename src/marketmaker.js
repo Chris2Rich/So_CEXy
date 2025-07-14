@@ -94,7 +94,7 @@ function generateMarketMakerConfig(userId, name, strategy) {
 
 // Define multiple market makers, each assigned to a specific strategy
 const marketMakers = [
-    generateMarketMakerConfig("327af47f-413a-4f26-bda9-26516a517e4c", "AlphaBot", 'MEAN_REVERSION'),
+    generateMarketMakerConfig("327af47f-413a-4f26-bda9-26516a517e4c", "AlphaBot", 'RANDOM_TRADER'),
     generateMarketMakerConfig("ac3b6a1d-d4da-4906-92eb-3d5c79a9a19f", "BetaBot", 'TREND_FOLLOWING'),
     generateMarketMakerConfig("e4849018-972d-45d7-aff9-688a8131f760", "VegaBot", 'MEAN_REVERSION'),
     generateMarketMakerConfig("d3890c20-7d9d-47ab-99c1-c763871328db", "GammaBot", "TREND_FOLLOWING"),
