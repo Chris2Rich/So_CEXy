@@ -19,6 +19,10 @@ for (const interfaceName in networkInterfaces) {
     }
 }
 
+if(process.argv[2]){
+    HOST = process.argv[2]
+}
+
 const API_BASE_URL = `https://${HOST}:${PORT}/api`;
 
 const httpsAgent = new https.Agent({
@@ -81,7 +85,7 @@ function generateMarketMakerConfig(userId, name, strategy) {
             marketConfig[ticker].shortSmaPeriod = randomInt(5, 8);
             marketConfig[ticker].longSmaPeriod = randomInt(15, 25);
         } else if (strategy === 'RANDOM_TRADER') {
-            marketConfig[ticker].tradeProbability = randomFloat(0.25, 0.5); // Trades on 25-50% of cycles
+            marketConfig[ticker].tradeProbability = randomFloat(0.6, 0.9);
         }
     }
 
@@ -94,7 +98,7 @@ const marketMakers = [
     generateMarketMakerConfig("ac3b6a1d-d4da-4906-92eb-3d5c79a9a19f", "BetaBot", 'TREND_FOLLOWING'),
     generateMarketMakerConfig("e4849018-972d-45d7-aff9-688a8131f760", "VegaBot", 'MEAN_REVERSION'),
     generateMarketMakerConfig("d3890c20-7d9d-47ab-99c1-c763871328db", "GammaBot", "TREND_FOLLOWING"),
-    generateMarketMakerConfig("6e6b1c53-70db-4e1d-998a-c8a5a844d584", "DeltaBot", "MEAN_REVERSION"),
+    generateMarketMakerConfig("6e6b1c53-70db-4e1d-998a-c8a5a844d584", "DeltaBot", "RANDOM_TRADER"),
     generateMarketMakerConfig("c1023295-4209-44e0-a8dc-3898c01a9a43", "KappaBot", "RANDOM_TRADER"),
 
 ];
@@ -214,7 +218,7 @@ function executeRandomTrader(marketMaker, ticker) {
     if (Math.random() < tradeProbability) {
         const orderType = Math.random() < 0.5 ? 1 : -1; // 1 for BUY, -1 for SELL
         const orderAmount = randomFloat(minAmount, maxAmount);
-        const currentPrice = priceHistory[priceHistory.length - 1];
+        const currentPrice = priceHistory[priceHistory.length - 1] + randomFloat(-10,10);
 
         console.log(`   [${ticker}] Signal: Random chance met. Executing a random ${orderType === 1 ? 'BUY' : 'SELL'}.`);
         addOrder(marketMaker.userId, ticker, orderType, currentPrice, orderAmount);
