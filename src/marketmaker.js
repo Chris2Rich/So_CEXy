@@ -218,7 +218,7 @@ function executeRandomTrader(marketMaker, ticker) {
     if (Math.random() < tradeProbability) {
         const orderType = Math.random() < 0.5 ? 1 : -1; // 1 for BUY, -1 for SELL
         const orderAmount = randomFloat(minAmount, maxAmount);
-        const currentPrice = priceHistory[priceHistory.length - 1] + randomFloat(-10,10);
+        const currentPrice = priceHistory[priceHistory.length - 1] + randomFloat(-5,5);
 
         console.log(`   [${ticker}] Signal: Random chance met. Executing a random ${orderType === 1 ? 'BUY' : 'SELL'}.`);
         addOrder(marketMaker.userId, ticker, orderType, currentPrice, orderAmount);
