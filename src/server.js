@@ -6,7 +6,7 @@ import { Client } from "pg"
 import os from "os"
 
 const sim_options = {
-    starting_balance: 1000
+    starting_balance: 10000
 }
 
 let HOST = ""
@@ -670,21 +670,22 @@ const sslOptions = {
     key: fs.readFileSync("src/.keys/key.pem"),
     cert: fs.readFileSync("src/.keys/cert.pem"),
 
-    minVersion: "TLSv1.2",
-    maxVersion: "TLSv1.3",
-    ciphers: [
-        "TLS_AES_256_GCM_SHA384",
-        "TLS_CHACHA20_POLY1305_SHA256",
-        "TLS_AES_128_GCM_SHA256",
-        "ECDHE-ECDSA-AES256-GCM-SHA384",
-        "ECDHE-RSA-AES256-GCM-SHA384",
-        "ECDHE-ECDSA-CHACHA20-POLY1305",
-        "ECDHE-RSA-CHACHA20-POLY1305",
-        "ECDHE-ECDSA-AES128-GCM-SHA256",
-        "ECDHE-RSA-AES128-GCM-SHA256"
-    ].join(":"),
-    honorCipherOrder: true,
+    // minVersion: "TLSv1.2",
+    // maxVersion: "TLSv1.3",
+    // ciphers: [
+    //     "TLS_AES_256_GCM_SHA384",
+    //     "TLS_CHACHA20_POLY1305_SHA256",
+    //     "TLS_AES_128_GCM_SHA256",
+    //     "ECDHE-ECDSA-AES256-GCM-SHA384",
+    //     "ECDHE-RSA-AES256-GCM-SHA384",
+    //     "ECDHE-ECDSA-CHACHA20-POLY1305",
+    //     "ECDHE-RSA-CHACHA20-POLY1305",
+    //     "ECDHE-ECDSA-AES128-GCM-SHA256",
+    //     "ECDHE-RSA-AES128-GCM-SHA256"
+    // ].join(":"),
+    // honorCipherOrder: true,
 
+<<<<<<< HEAD
     requestCert: true,
     rejectUnauthorized: false,
 
@@ -698,6 +699,25 @@ const sslOptions = {
     },
 
     secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT | constants.SSL_OP_NO_SSLv3 | constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1 | constants.SSL_OP_CIPHER_SERVER_PREFERENCE
+=======
+    // // Enable OCSP Stapling
+    // requestCert: true,
+    // rejectUnauthorized: false,
+
+    // // Enable session resumption
+    // sessionTimeout: 300, // 5 minutes
+    // sessionIdContext: "SoCexyyy",
+
+    // // Enable HSTS preload
+    // hsts: {
+    //     maxAge: 63072000, // 2 years in seconds
+    //     includeSubDomains: true,
+    //     preload: true
+    // },
+
+    // // Enable secure renegotiation
+    // secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT | constants.SSL_OP_NO_SSLv3 | constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1 | constants.SSL_OP_CIPHER_SERVER_PREFERENCE
+>>>>>>> 365ef905252251617c2f7e88373fcb3f6a4938dc
 }
 
 const server = https.createServer(sslOptions, async (req, res) => {
@@ -710,12 +730,12 @@ const server = https.createServer(sslOptions, async (req, res) => {
     })
 
     if (req.url.startsWith("/api/")) {
-        res.writeHead(200, { "Content-Type": "application/json charset=utf-8" })
+        res.writeHead(200, { "Content-Type": "application/json" })
         const api_result = await handleapi(req)
         res.end(JSON.stringify(api_result))
         return
     }
-    res.writeHead(200, { "Content-Type": "text/html charset=utf-8" })
+    res.writeHead(200, { "Content-Type": "text/html" })
     res.end(page)
     return
 })

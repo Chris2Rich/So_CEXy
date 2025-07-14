@@ -1121,6 +1121,7 @@
             // Auto-refresh delta orders every 5 seconds
             setInterval(updateOrderBook, 1000);
             setInterval(updatePortfolioSummary, 5000);
+            setInterval(loadHistoricalData, 5000);
         }
 
         // Load available tickers
@@ -1143,22 +1144,15 @@
                     if (ticker === selectedTicker) {
                         listItem.classList.add('selected');
                     }
-                    // Add click event to select a ticker and re-render the order book
-                    listItem.addEventListener('click', () => {
-                        selectedTicker = ticker;
-                        // Update selection highlight
-                        document.querySelectorAll('#tickers-list li').forEach(li => li.classList.remove('selected'));
-                        listItem.classList.add('selected');
-                        // Re-render immediately on click to bring the selected ticker to the top
-                        updateOrderBook();
-                    });
                     list.appendChild(listItem);
                 }
                 list.addEventListener('change', function () {
                     if (this.value) {
-                        loadHistoricalData(this.value);
                         document.getElementById("trueTitle").textContent = fullnamemap[this.value]
                         document.getElementById('orderTicker').value = this.value;
+                        selectedTicker = this.value;
+                        loadHistoricalData();
+                        updateOrderBook();
                     }
                 })
             } catch (error) {
@@ -1167,7 +1161,7 @@
         }
 
         // Load historical data for chart
-        async function loadHistoricalData(ticker) {
+        async function loadHistoricalData() {
             try {
                 const response = await fetch('/api/get_historical', {
                     method: 'POST',
@@ -1175,7 +1169,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        ticker: ticker,
+                        ticker: selectedTicker,
                         limit: 100
                     })
                 });
@@ -1183,7 +1177,7 @@
                 const result = await response.json();
 
                 if (result.status === 'OK') {
-                    updateChart(result.data, ticker);
+                    updateChart(result.data, selectedTicker);
                 }
             } catch (error) {
                 console.error('Error loading historical data:', error);
@@ -1204,7 +1198,7 @@
                         backgroundColor: 'rgba(6, 182, 212, 0.2)',
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.4
+                        stepped: true,
                     }]
                 },
                 options: {
@@ -1436,7 +1430,7 @@
                     document.getElementById('orderAmount').value = '';
                     // Reload delta orders
                     updateOrderBook();
-                    loadHistoricalData(ticker)
+                    loadHistoricalData()
                     updatePortfolioSummary();
                 } else {
                     alert('Error: ' + result.error);
